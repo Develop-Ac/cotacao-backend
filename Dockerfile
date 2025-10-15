@@ -13,9 +13,9 @@ RUN npm run build
 FROM node:20-alpine AS runtime
 WORKDIR /app
 RUN apk add --no-cache openssl
-ENV NODE_ENV=production PORT=3000
+ENV NODE_ENV=production PORT=8000
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/dist ./dist
-EXPOSE 3000
+EXPOSE 8000
 CMD sh -c "npx prisma migrate deploy || true; node dist/main.js"

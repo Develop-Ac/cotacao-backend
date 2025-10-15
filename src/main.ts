@@ -34,7 +34,7 @@ async function bootstrap() {
         'appToken', // nome do esquema
       )
       // (opcional) mostre servidores
-      .addServer(process.env.PUBLIC_URL ?? 'http://localhost:3000')
+      .addServer(process.env.PUBLIC_URL ?? 'http://localhost:8000')
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
@@ -47,7 +47,7 @@ async function bootstrap() {
     // Agora a UI fica em /docs e o JSON em /docs-json
   }
 
-  const port = parseInt(process.env.PORT || '3000', 10);
+  const port = parseInt(process.env.PORT || '8000', 10);
   await app.listen(port, '0.0.0.0');
   console.log(`API listening on http://localhost:${port}`);
   if (process.env.SWAGGER_ENABLED === 'true') {
