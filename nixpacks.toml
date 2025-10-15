@@ -1,0 +1,19 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "openssl"]
+
+[phases.install]
+# apenas um install; postinstall -> prisma generate roda aqui
+cmds = ["npm ci"]
+
+[phases.build]
+# só build (NÃO rode npm ci aqui)
+cmds = ["npm run build"]
+
+[start]
+# se quiser migrations automáticas em produção:
+# cmd = "npm run prisma:deploy && npm run start"
+cmd = "npm run start"
+
+[variables]
+# evita o cache dentro de node_modules
+NPM_CONFIG_CACHE = "/tmp/npm-cache"

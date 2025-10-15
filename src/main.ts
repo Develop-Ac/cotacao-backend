@@ -33,7 +33,7 @@ async function bootstrap() {
     swaggerOptions: { persistAuthorization: true },
   });
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
   console.log(`Docs: http://localhost:${process.env.PORT ?? 3000}/api-docs`);
 }
 bootstrap();
