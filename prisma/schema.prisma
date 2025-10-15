@@ -1,0 +1,92 @@
+// prisma/schema.prisma
+datasource db {
+  provider = "sqlite"   // ou "mysql" | "sqlite" | "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+/* =====================
+   Tabela: usuarios
+   - PK: usuario_id (autoincrement)
+   - campos: nome, email, senha, trash (int)
+===================== */
+model Usuario {
+  usuario_id Int     @id @default(autoincrement()) @map("usuario_id")
+  nome       String
+  email      String  @unique
+  senha      String
+  trash      Int     @default(0)
+
+  @@map("usuarios")
+}
+
+/* =====================
+   Tabela: cotacoes
+   - PK: id (autoincrement)
+   - campos: cotacao_id (id de negócio), orcamento_compra (string)
+   - relações: hasMany -> ItemCotacao, OrcamentoCotacao
+===================== */
+model Cotacao {
+  id               Int                 @id @default(autoincrement())
+  // "cotacao_id" aparece no seu fillable; mantendo como identificador de negócio opcional/único
+  cotacao_id       Int?                @unique
+  orcamento_compra String?
+
+  itens            ItemCotacao[]       // hasMany
+  orcamentos       OrcamentoCotacao[]  // hasMany
+
+  @@map("cotacoes")
+}
+
+/* =====================
+   Tabela: item_cotacoes
+   - PK: id (autoincrement)
+   - campos de negócio: item_id, cotacao_id (FK -> cotacoes.id)
+   - demais: cod, descricao, marca, ref_fornecedor, unidade, quantidade, valor_unitario, selecionado
+   - relação: belongsTo(Cotacao)
+===================== */
+model ItemCotacao {
+  id             Int      @id @default(autoincrement())
+  item_id        Int?     // id de negócio do item, não PK
+  cotacao_id     Int
+  cod            String?
+  descricao      String?
+  marca          String?
+  ref_fornecedor String?
+  unidade        String?
+  quantidade     Int?     @default(0)
+  valor_unitario Float?
+  selecionado    Boolean  @default(false)
+
+  cotacao        Cotacao  @relation(fields: [cotacao_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([cotacao_id])
+  @@map("item_cotacoes")
+}
+
+/* =====================
+   Tabela: orcamento_cotacaos
+   - PK: id (autoincrement)
+   - campos: orcamento_id (negócio), cotacao_id (FK -> cotacoes.id),
+             descricao, quantidade, valor_unitario, fornecedor, observacao, selecionado
+   - relação: belongsTo(Cotacao)
+===================== */
+model OrcamentoCotacao {
+  id             Int      @id @default(autoincrement())
+  orcamento_id   Int?     // id de negócio do orçamento, não PK
+  cotacao_id     Int
+  descricao      String?
+  quantidade     Int?     @default(0)
+  valor_unitario Float?
+  fornecedor     String?
+  observacao     String?
+  selecionado    Boolean  @default(false)
+
+  cotacao        Cotacao  @relation(fields: [cotacao_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([cotacao_id])
+  @@map("orcamento_cotacaos")
+}
