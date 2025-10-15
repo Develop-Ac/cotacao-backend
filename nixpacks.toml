@@ -1,21 +1,18 @@
+# nixpacks.toml
 [phases.setup]
-nixPkgs = ["nodejs_20", "openssl"]
-
-[variables]
-NPM_CONFIG_CACHE = "/tmp/npm-cache"
+# se precisar de pacotes do SO, pode listar aqui (ex.: openssl)
+# nixPkgs = ["openssl"]
 
 [phases.install]
-# instala deps (executa postinstall -> prisma generate)
-cmds = ["npm ci"]
+cmds = [
+  "npm ci"
+]
 
 [phases.build]
-# garante novamente a geração antes do build (idempotente e rápido)
 cmds = [
-  "npm run prisma:generate",
+  "npx prisma generate",
   "npm run build"
 ]
 
 [start]
-# se quiser aplicar migrações automaticamente:
-# cmd = "npm run prisma:deploy && npm run start"
-cmd = "npm run start"
+cmd = "npx prisma migrate deploy && node dist/main.js"
