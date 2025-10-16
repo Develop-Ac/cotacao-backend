@@ -11,8 +11,8 @@ export declare class LoginController {
         message: string;
         usuario: {
             usuario_id: number;
-            nome: string;
             email: string;
+            nome: string;
             trash: number;
         };
     }>;

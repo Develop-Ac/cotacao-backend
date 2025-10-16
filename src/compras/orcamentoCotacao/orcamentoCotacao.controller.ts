@@ -1,3 +1,4 @@
+// src/orcamento-cotacao/orcamentoCotacao.controller.ts
 import {
   Body,
   Controller,
@@ -9,41 +10,97 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
+import {
+  ApiBody,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+  ApiProperty,
+  ApiExtraModels,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import { IsArray, IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 import { OrcamentoCotacaoService } from './orcamentoCotacao.service';
 
+// ================= DTOs (request) =================
 class StoreItemDto {
+  @ApiProperty({ example: 'Lâmpada LED H7 Ultra' })
   @IsNotEmpty() @IsString()
   descricao!: string;
 
+  @ApiProperty({ example: 4, minimum: 1 })
   @IsInt() @Min(1)
   quantidade!: number;
 
-  // pode vir "12,34" (string) ou 12.34 (number).
-  // Se quiser validar ambos, poderia usar um custom validator; aqui deixamos flexível.
+  // Aceita "129,90" (string) ou 129.9 (number)
+  @ApiProperty({ examples: ['129,90', 129.9] as any, description: 'Pode ser string com vírgula ou número' })
   @IsNotEmpty()
   valor_unitario!: any;
 }
 
 class StoreOrcamentoCotacaoDto {
+  @ApiProperty({ example: 101, description: 'cotacao_id' })
   @IsInt() @Min(1)
-  id!: number; // cotacao_id
+  id!: number;
 
+  @ApiProperty({ example: 'Fornecedor X' })
   @IsNotEmpty() @IsString()
   fornecedor!: string;
 
+  @ApiProperty({ example: 'Prazo de entrega 7 dias', required: false })
   @IsOptional() @IsString()
   observacao?: string;
 
+  @ApiProperty({ type: [StoreItemDto] })
   @IsArray()
   dados!: StoreItemDto[];
 }
 
 class UpdateSelecionadoDto {
+  @ApiProperty({ example: true })
   @IsBoolean()
   selecionado!: boolean;
 }
 
+// ================= Views (responses) =================
+class OrcamentoItemView {
+  @ApiProperty({ example: 'Lâmpada LED H7 Ultra' }) descricao!: string;
+  @ApiProperty({ example: 4 }) quantidade!: number;
+  @ApiProperty({ example: 129.9 }) valor_unitario!: number;
+  @ApiProperty({ example: 519.6 }) total_item!: number;
+}
+
+class OrcamentoView {
+  @ApiProperty({ example: 555 }) id!: number; // orçamento_id
+  @ApiProperty({ example: 'Fornecedor X' }) fornecedor!: string;
+  @ApiProperty({ example: 'Prazo de entrega 7 dias', required: false }) observacao?: string;
+  @ApiProperty({ example: false }) selecionado!: boolean;
+  @ApiProperty({ type: [OrcamentoItemView] }) dados!: OrcamentoItemView[];
+  @ApiProperty({ example: 519.6 }) total!: number;
+  @ApiProperty({ example: '2025-10-15T12:10:00.000Z' }) criadoEm!: string;
+  @ApiProperty({ example: '2025-10-15T12:10:00.000Z' }) atualizadoEm!: string;
+}
+
+class CotacaoComOrcamentosView {
+  @ApiProperty({ example: 101 }) id!: number; // cotacao_id
+  @ApiProperty({ example: 'ORC-2025-001234' }) key!: string;
+  @ApiProperty({ type: [OrcamentoView] }) orcamentos!: OrcamentoView[];
+  @ApiProperty({ example: '2025-10-15T12:00:00.000Z' }) criadoEm!: string;
+  @ApiProperty({ example: '2025-10-15T12:45:00.000Z' }) atualizadoEm!: string;
+}
+
+@ApiTags('Orçamentos da Cotação')
+@ApiExtraModels(
+  StoreItemDto,
+  StoreOrcamentoCotacaoDto,
+  UpdateSelecionadoDto,
+  OrcamentoItemView,
+  OrcamentoView,
+  CotacaoComOrcamentosView,
+)
 @Controller('orcamentos-cotacao')
 @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
 export class OrcamentoCotacaoController {
@@ -54,6 +111,64 @@ export class OrcamentoCotacaoController {
    * Body: { id (cotacao_id), fornecedor, observacao?, dados: [{descricao, quantidade, valor_unitario}] }
    */
   @Post()
+  @ApiOperation({ summary: 'Cria um orçamento para uma cotação existente' })
+  @ApiBody({
+    description: 'Dados do orçamento',
+    schema: { allOf: [{ $ref: getSchemaPath(StoreOrcamentoCotacaoDto) }] },
+    examples: {
+      Minimo: {
+        summary: 'Exemplo mínimo',
+        value: {
+          id: 101,
+          fornecedor: 'Fornecedor X',
+          dados: [
+            { descricao: 'Lâmpada LED H7 Ultra', quantidade: 4, valor_unitario: '129,90' }
+          ]
+        },
+      },
+      Completo: {
+        summary: 'Exemplo completo',
+        value: {
+          id: 101,
+          fornecedor: 'Fornecedor Y',
+          observacao: 'Entrega em 7 dias • Garantia 6 meses',
+          dados: [
+            { descricao: 'Lâmpada LED H7 Ultra', quantidade: 4, valor_unitario: 129.9 },
+            { descricao: 'Kit Palheta Silicone 26"', quantidade: 2, valor_unitario: 89.9 }
+          ]
+        },
+      },
+    },
+  })
+  @ApiCreatedResponse({
+    description: 'Orçamento criado',
+    schema: {
+      $ref: getSchemaPath(OrcamentoView),
+      example: {
+        id: 555,
+        fornecedor: 'Fornecedor X',
+        observacao: 'Entrega em 7 dias',
+        selecionado: false,
+        dados: [
+          { descricao: 'Lâmpada LED H7 Ultra', quantidade: 4, valor_unitario: 129.9, total_item: 519.6 }
+        ],
+        total: 519.6,
+        criadoEm: '2025-10-15T12:10:00.000Z',
+        atualizadoEm: '2025-10-15T12:10:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Payload inválido',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: ['id must be an integer number', 'dados must be an array'],
+        error: 'Bad Request',
+      },
+    },
+  })
   async store(@Body() dto: StoreOrcamentoCotacaoDto) {
     return this.service.store(dto);
   }
@@ -63,6 +178,35 @@ export class OrcamentoCotacaoController {
    * Retorna a cotação (id) com seus orçamentos
    */
   @Get(':id')
+  @ApiOperation({ summary: 'Obtém a cotação com seus orçamentos' })
+  @ApiParam({ name: 'id', example: 101, description: 'cotacao_id' })
+  @ApiOkResponse({
+    description: 'Cotação encontrada',
+    schema: {
+      $ref: getSchemaPath(CotacaoComOrcamentosView),
+      example: {
+        id: 101,
+        key: 'ORC-2025-001234',
+        orcamentos: [
+          {
+            id: 555,
+            fornecedor: 'Fornecedor X',
+            observacao: 'Entrega em 7 dias',
+            selecionado: false,
+            dados: [
+              { descricao: 'Lâmpada LED H7 Ultra', quantidade: 4, valor_unitario: 129.9, total_item: 519.6 },
+              { descricao: 'Kit Palheta Silicone 26"', quantidade: 2, valor_unitario: 89.9, total_item: 179.8 }
+            ],
+            total: 699.4,
+            criadoEm: '2025-10-15T12:10:00.000Z',
+            atualizadoEm: '2025-10-15T12:10:00.000Z',
+          }
+        ],
+        criadoEm: '2025-10-15T12:00:00.000Z',
+        atualizadoEm: '2025-10-15T12:45:00.000Z'
+      },
+    },
+  })
   async show(@Param('id', ParseIntPipe) id: number) {
     return this.service.getCotacaoComOrcamentos(id);
   }
@@ -72,6 +216,39 @@ export class OrcamentoCotacaoController {
    * Atualiza "selecionado" do orçamento com id = :id
    */
   @Patch(':id')
+  @ApiOperation({ summary: 'Atualiza flag "selecionado" de um orçamento' })
+  @ApiParam({ name: 'id', example: 555, description: 'orçamento_id' })
+  @ApiBody({
+    description: 'Definição da flag selecionado',
+    schema: { allOf: [{ $ref: getSchemaPath(UpdateSelecionadoDto) }] },
+    examples: {
+      Selecionar: { value: { selecionado: true } },
+      Desmarcar: { value: { selecionado: false } },
+    },
+  })
+  @ApiOkResponse({
+    description: 'Orçamento atualizado',
+    schema: {
+      $ref: getSchemaPath(OrcamentoView),
+      example: {
+        id: 555,
+        fornecedor: 'Fornecedor X',
+        observacao: 'Entrega em 7 dias',
+        selecionado: true,
+        dados: [
+          { descricao: 'Lâmpada LED H7 Ultra', quantidade: 4, valor_unitario: 129.9, total_item: 519.6 }
+        ],
+        total: 519.6,
+        criadoEm: '2025-10-15T12:10:00.000Z',
+        atualizadoEm: '2025-10-15T12:20:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Orçamento não encontrado',
+    schema: { example: { statusCode: 404, message: 'Orçamento não encontrado' } },
+  })
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateSelecionadoDto,
