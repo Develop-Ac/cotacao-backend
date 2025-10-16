@@ -29,15 +29,15 @@ export declare class CotacaoController {
         itens: {
             id: number;
             cotacao_id: number;
-            item_id: number | null;
             cod: string | null;
             descricao: string | null;
             marca: string | null;
-            ref_fornecedor: string | null;
             unidade: string | null;
             quantidade: number | null;
             valor_unitario: number | null;
             selecionado: boolean;
+            item_id: number | null;
+            ref_fornecedor: string | null;
         }[];
     } & {
         id: number;

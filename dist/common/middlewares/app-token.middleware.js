@@ -13,6 +13,12 @@ let AppTokenMiddleware = class AppTokenMiddleware {
     use(req, res, next) {
         if (req.method === 'OPTIONS')
             return res.sendStatus(204);
+        const path = req.path || '';
+        if (path.startsWith('/docs') ||
+            path.startsWith('/docs-json') ||
+            path.startsWith('/health')) {
+            return next();
+        }
         const tokenFromBody = (req.body && req.body.token) || '';
         const tokenFromQuery = req.query?.token || '';
         const token = tokenFromBody || tokenFromQuery;
@@ -24,7 +30,7 @@ let AppTokenMiddleware = class AppTokenMiddleware {
         }
         if (req.body && 'token' in req.body)
             delete req.body.token;
-        return next();
+        next();
     }
 };
 exports.AppTokenMiddleware = AppTokenMiddleware;

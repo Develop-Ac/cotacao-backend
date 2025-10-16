@@ -20,8 +20,6 @@ export declare class UsuarioController {
             email: string;
         };
     }>;
-    destroy(id: string): Promise<{
-        message: string;
-    }>;
+    destroy(id: string): Promise<void>;
 }
 export {};

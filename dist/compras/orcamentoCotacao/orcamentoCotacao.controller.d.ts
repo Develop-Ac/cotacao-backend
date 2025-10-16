@@ -26,10 +26,10 @@ export declare class OrcamentoCotacaoController {
             descricao: string | null;
             quantidade: number | null;
             valor_unitario: number | null;
-            selecionado: boolean;
             orcamento_id: number | null;
             fornecedor: string | null;
             observacao: string | null;
+            selecionado: boolean;
         }[];
     } & {
         id: number;
@@ -44,10 +44,10 @@ export declare class OrcamentoCotacaoController {
             descricao: string | null;
             quantidade: number | null;
             valor_unitario: number | null;
-            selecionado: boolean;
             orcamento_id: number | null;
             fornecedor: string | null;
             observacao: string | null;
+            selecionado: boolean;
         };
     }>;
 }

@@ -7,7 +7,10 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
-  app.use(helmet());
+  app.use(helmet({
+    contentSecurityPolicy: false,       // necessário para swagger-ui
+    crossOriginEmbedderPolicy: false,   // evita bloqueio de assets
+  }));
   app.enableCors({
     origin: process.env.CORS_ORIGIN?.split(',').map(s => s.trim()) ?? true,
     credentials: true,
