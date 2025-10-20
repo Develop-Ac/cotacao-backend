@@ -13,38 +13,13 @@ import {
   ApiUnauthorizedResponse,
   ApiOperation,
   ApiTags,
-  ApiProperty,
   ApiExtraModels,
   getSchemaPath,
   ApiConsumes,
 } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+// (DTOs foram movidos para ./login.dto)
 import { LoginService } from './login.service';
-
-class LoginDto {
-  @ApiProperty({ example: 'usuario@empresa.com' })
-  @IsNotEmpty()
-  @IsEmail()
-  email!: string;
-
-  @ApiProperty({ example: 'SenhaF0rte!' })
-  @IsNotEmpty()
-  @IsString()
-  senha!: string;
-}
-
-class LoginResponseView {
-  @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
-  access_token!: string;
-
-  @ApiProperty({ example: 3600, description: 'Validade do token em segundos' })
-  expires_in!: number;
-
-  @ApiProperty({
-    example: { usuario_id: 123, nome: 'Giovana Custodio', email: 'usuario@empresa.com' },
-  })
-  user!: { usuario_id: number; nome: string; email: string };
-}
+import { LoginDto, LoginResponseView } from './login.dto';
 
 @ApiTags('Auth')
 @ApiExtraModels(LoginDto, LoginResponseView)
