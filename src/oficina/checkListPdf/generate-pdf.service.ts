@@ -2,6 +2,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import { PrismaService } from '../../prisma/prisma.service';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Alias de tipo seguro para a instância do PDFKit
 type PDFDoc = InstanceType<typeof PDFDocument>;
@@ -9,6 +11,23 @@ type PDFDoc = InstanceType<typeof PDFDocument>;
 @Injectable()
 export class GenerateChecklistPdfService {
   constructor(private readonly prisma: PrismaService) {}
+
+  // ---------- Util: localizar logo e retornar Buffer ----------
+  private getLogoBuffer(): Buffer | null {
+    const candidates = [
+      path.resolve(process.cwd(), 'public', 'icon-192.png'),
+      path.resolve(process.cwd(), 'icon-192.png'),
+      path.resolve(process.cwd(), 'src', 'public', 'icon-192.png'),
+    ];
+    for (const p of candidates) {
+      try {
+        if (fs.existsSync(p)) return fs.readFileSync(p);
+      } catch {
+        // ignora e tenta o próximo
+      }
+    }
+    return null;
+  }
 
   private dataUrlToBuffer(dataUrlOrBase64?: string | null): Buffer | null {
     if (!dataUrlOrBase64) return null;
@@ -93,11 +112,7 @@ export class GenerateChecklistPdfService {
     return y; // y final após a tabela
   }
 
-  private writeTwoTablesChecklist(
-    doc: PDFDoc,
-    items: { item: string; status: string }[],
-    margin: number,
-  ) {
+  private writeTwoTablesChecklist(doc: PDFDoc, items: { item: string; status: string }[], margin: number) {
     const gap = 16;
     const usableWidth = doc.page.width - margin * 2;
     const tableWidth = (usableWidth - gap) / 2;
@@ -120,24 +135,8 @@ export class GenerateChecklistPdfService {
     const xLeft = margin;
     const xRight = margin + tableWidth + gap;
 
-    const yEndLeft = this.drawSimpleTable(
-      doc,
-      leftRows,
-      xLeft,
-      yStart,
-      tableWidth,
-      rowH,
-      headerH,
-    );
-    const yEndRight = this.drawSimpleTable(
-      doc,
-      rightRows,
-      xRight,
-      yStart,
-      tableWidth,
-      rowH,
-      headerH,
-    );
+    const yEndLeft = this.drawSimpleTable(doc, leftRows, xLeft, yStart, tableWidth, rowH, headerH);
+    const yEndRight = this.drawSimpleTable(doc, rightRows, xRight, yStart, tableWidth, rowH, headerH);
 
     // posiciona o cursor no maior Y final
     doc.y = Math.max(yEndLeft, yEndRight) + 6;
@@ -149,7 +148,7 @@ export class GenerateChecklistPdfService {
     margin: number,
   ) {
     const headers = ['Peça', 'Tipo', 'Observações'];
-    const colPerc = [0.25, 0.20, 0.55]; // largura relativa
+    const colPerc = [0.25, 0.2, 0.55]; // largura relativa
     const usableWidth = doc.page.width - margin * 2;
     const colW = colPerc.map((p) => Math.floor(usableWidth * p));
     const rowH = 16;
@@ -192,12 +191,7 @@ export class GenerateChecklistPdfService {
     doc.moveDown(0.5);
   }
 
-  private drawSignaturesFooter(
-    doc: PDFDoc,
-    clienteImg: Buffer | null,
-    respImg: Buffer | null,
-    margin: number,
-  ) {
+  private drawSignaturesFooter(doc: PDFDoc, clienteImg: Buffer | null, respImg: Buffer | null, margin: number) {
     const boxW = 160;
     const boxH = 60;
 
@@ -214,7 +208,6 @@ export class GenerateChecklistPdfService {
         fit: [boxW - 16, boxH - 24],
       });
     }
-    // 🔻 Label alinhado ao canto esquerdo
     doc.font('Helvetica').fontSize(9).text('Cliente', margin, yStart + boxH + 6, {
       align: 'left',
       width: boxW,
@@ -230,11 +223,10 @@ export class GenerateChecklistPdfService {
         fit: [boxW - 16, boxH - 24],
       });
     }
-    // Mantém alinhado à direita
-    doc
-      .font('Helvetica')
-      .fontSize(9)
-      .text('Responsável', rightX, yStart + boxH + 6, { align: 'right', width: boxW });
+    doc.font('Helvetica').fontSize(9).text('Responsável', rightX, yStart + boxH + 6, {
+      align: 'right',
+      width: boxW,
+    });
 
     doc.moveDown(2);
   }
@@ -258,14 +250,45 @@ export class GenerateChecklistPdfService {
 
     const margin = 12;
 
-    // Cabeçalho
-    doc.font('Helvetica-Bold').fontSize(14).text('Checklist de Entrada de Veículo – 3D', {
-      align: 'left',
-    });
-    doc.font('Helvetica').fontSize(10).text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, {
-      align: 'right',
-    });
-    doc.moveDown(0.5);
+    // =============================
+    // Cabeçalho com LOGO + TÍTULO (título centralizado verticalmente)
+    // =============================
+    const logo = this.getLogoBuffer();
+    const headerY = doc.y; // geralmente = margin
+
+    const title = 'Checklist de Entrada de Veículo – AC';
+    const titleFontSize = 14;
+    const logoSize = 28; // caixa quadrada conhecida para facilitar centragem
+    const gap = 8;
+
+    let headerBlockHeight = 0;
+
+    // Desenha logo à esquerda dentro de uma caixa conhecida (fit) => altura conhecida (logoSize)
+    if (logo) {
+      doc.image(logo, margin, headerY, { fit: [logoSize, logoSize] });
+      headerBlockHeight = Math.max(headerBlockHeight, logoSize);
+    }
+
+    // Medidas do título
+    doc.font('Helvetica-Bold').fontSize(titleFontSize);
+    const titleX = margin + (logo ? logoSize + gap : 0);
+    const titleWidth = doc.page.width - titleX - margin;
+
+    // Altura do título (pode variar se quebrar linha)
+    const titleHeight = doc.heightOfString(title, { width: titleWidth });
+
+    // Calcula Y do título para centralizar verticalmente em relação à altura da logo (ou do próprio título se não houver logo)
+    const referenceHeight = logo ? logoSize : titleHeight;
+    const yTitle = headerY + (referenceHeight - titleHeight) / 2;
+
+    // Desenha o título alinhado à esquerda, centralizado verticalmente
+    doc.text(title, titleX, yTitle, { width: titleWidth, align: 'left' });
+
+    // Altura total do bloco do cabeçalho
+    headerBlockHeight = Math.max(headerBlockHeight, titleHeight);
+
+    // Avança o cursor após o cabeçalho e traça a linha
+    doc.y = headerY + headerBlockHeight + 6;
     doc
       .moveTo(margin, doc.y)
       .lineTo(doc.page.width - margin, doc.y)
@@ -273,6 +296,10 @@ export class GenerateChecklistPdfService {
       .strokeColor('#dddddd')
       .stroke();
     doc.moveDown(0.6);
+
+    // =============================
+    // (REMOVIDO) "Gerado em: ..."
+    // =============================
 
     // Identificação
     this.addSectionTitle(doc, 'Identificação', margin);
@@ -300,13 +327,7 @@ export class GenerateChecklistPdfService {
 
     const y4 = doc.y + 2;
     this.textLabelValue(doc, 'Cor: ', c.veiculoCor || '-', margin, y4);
-    this.textLabelValue(
-      doc,
-      'KM: ',
-      c.veiculoKm != null ? String(c.veiculoKm) : '-',
-      margin + 240,
-      y4,
-    );
+    this.textLabelValue(doc, 'KM: ', c.veiculoKm != null ? String(c.veiculoKm) : '-', margin + 240, y4);
     doc.moveDown(1);
 
     // Combustível
@@ -320,11 +341,7 @@ export class GenerateChecklistPdfService {
     if (checklist.length) {
       this.writeTwoTablesChecklist(doc, checklist, margin);
     } else {
-      doc
-        .font('Helvetica-Oblique')
-        .fontSize(10)
-        .fillColor('#555')
-        .text('Sem itens informados.', margin);
+      doc.font('Helvetica-Oblique').fontSize(10).fillColor('#555').text('Sem itens informados.', margin);
       doc.fillColor('#000');
       doc.moveDown(0.6);
     }
