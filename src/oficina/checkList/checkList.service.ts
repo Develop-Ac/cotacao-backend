@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateChecklistDto } from './dto/create-checklist.dto';
+import { Prisma } from '@prisma/client';
 
 type ListQuery = {
   page?: number | string;
@@ -86,7 +87,7 @@ export class ChecklistsService {
   }
 
   /** LIST (com paginação + busca) */
-  async findAll(query: ListQuery) {
+async findAll(query: ListQuery) {
     const page = Math.max(1, Number(query.page ?? 1));
     const pageSize = Math.min(100, Math.max(1, Number(query.pageSize ?? 10)));
     const skip = (page - 1) * pageSize;
@@ -95,15 +96,19 @@ export class ChecklistsService {
     const orderByField = (query.orderBy ?? 'createdAt') as 'createdAt' | 'dataHoraEntrada';
     const orderDir = (query.orderDir ?? 'desc') as 'asc' | 'desc';
 
-    const where = search
+    // use o enum do Prisma para o mode (ou 'insensitive' as const)
+    const insensitive = Prisma.QueryMode.insensitive;
+
+    // TIPAR explicitamente o where evita inferência ruim do TS
+    const where: Prisma.ChecklistWhereInput | undefined = search
       ? {
           OR: [
-            { osInterna: { contains: search, mode: 'insensitive' } },
-            { clienteNome: { contains: search, mode: 'insensitive' } },
-            { veiculoPlaca: { contains: search, mode: 'insensitive' } },
+            { osInterna:    { contains: search, mode: insensitive } },
+            { clienteNome:  { contains: search, mode: insensitive } },
+            { veiculoPlaca: { contains: search, mode: insensitive } },
           ],
         }
-      : {};
+      : undefined;
 
     const [total, data] = await this.prisma.$transaction([
       this.prisma.checklist.count({ where }),
@@ -123,8 +128,6 @@ export class ChecklistsService {
           veiculoNome: true,
           createdAt: true,
           updatedAt: true,
-          // Se quiser contar itens/avarias:
-          // _count: { select: { checklistItems: true, avarias: true } },
         },
       }),
     ]);
