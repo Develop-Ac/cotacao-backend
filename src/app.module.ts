@@ -7,6 +7,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { LoginModule } from './login/login.module';
 import { CotacaoModule } from './compras/cotacao/cotacao.module';
 import { OrcamentoCotacaoModule } from './compras/orcamentoCotacao/orcamentoCotacao.module';
+import { ChecklistsModule } from './oficina/checkList/checklist.module';
+import { GenerateChecklistPdfModule } from './oficina/checkListPdf/generate-pdf.module';
 
 @Module({
 imports: [
@@ -15,11 +17,15 @@ imports: [
     LoginModule,
     CotacaoModule,
     OrcamentoCotacaoModule,
+    ChecklistsModule,
+    GenerateChecklistPdfModule,
 
     // ⬇️ Prefixa *somente* esses módulos com /compras
     RouterModule.register([
       { path: 'compras', module: CotacaoModule },
       { path: 'compras', module: OrcamentoCotacaoModule },
+      { path: 'oficina', module: ChecklistsModule },
+      { path: 'oficina', module: GenerateChecklistPdfModule },
     ]),
   ],
   controllers: [AppController],

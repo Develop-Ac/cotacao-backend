@@ -65,3 +65,59 @@ model OrcamentoCotacao {
   @@index([cotacao_id])
   @@map("orcamento_cotacaos")
 }
+
+model Checklist {
+  id                       String          @id @default(cuid())
+  osInterna                String?
+  dataHoraEntrada          DateTime?
+  observacoes              String?
+  combustivelPercentual    Int?
+  clienteNome              String?
+  clienteDoc               String?
+  clienteTel               String?
+  clienteEnd               String?
+  veiculoNome              String?
+  veiculoPlaca             String?
+  veiculoCor               String?
+  veiculoKm                BigInt?         // RECOMENDADO para km grandes (opcional)
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
+
+  // NOVOS CAMPOS (assinam em base64)
+  assinaturasclienteBase64   String?       
+  assinaturasresponsavelBase64 String?     
+
+  checklistItems           ChecklistItem[]
+  avarias                  Avaria[]
+}
+
+
+model ChecklistItem {
+  id          String     @id @default(cuid())
+  checklistId String                                     // <- STRING
+  item        String
+  status      String
+  checklist   Checklist  @relation(fields: [checklistId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([checklistId])
+}
+
+model Avaria {
+  id          String     @id @default(cuid())
+  checklistId String                                     // <- STRING
+  tipo        String?
+  peca        String?
+  observacoes String?
+  posX        Float?
+  posY        Float?
+  posZ        Float?
+  normX       Float?
+  normY       Float?
+  normZ       Float?
+  fotoBase64  String?
+  timestamp   DateTime?
+  checklist   Checklist  @relation(fields: [checklistId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([checklistId])
+}
+
