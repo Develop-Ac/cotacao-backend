@@ -15,7 +15,7 @@ model Usuario {
   senha      String
   trash      Int     @default(0)
 
-  @@map("usuarios")
+  @@map("com_usuarios")
 }
 
 model Cotacao {
@@ -27,7 +27,7 @@ model Cotacao {
   itens            ItemCotacao[]       // hasMany
   orcamentos       OrcamentoCotacao[]  // hasMany
 
-  @@map("cotacoes")
+  @@map("com_cotacoes")
 }
 
 model ItemCotacao {
@@ -46,7 +46,7 @@ model ItemCotacao {
   cotacao        Cotacao  @relation(fields: [cotacao_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([cotacao_id])
-  @@map("item_cotacoes")
+  @@map("com_item_cotacoes")
 }
 
 model OrcamentoCotacao {
@@ -63,7 +63,7 @@ model OrcamentoCotacao {
   cotacao        Cotacao  @relation(fields: [cotacao_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([cotacao_id])
-  @@map("orcamento_cotacaos")
+  @@map("com_orcamento_cotacaos")
 }
 
 model Checklist {
@@ -89,6 +89,7 @@ model Checklist {
 
   checklistItems           ChecklistItem[]
   avarias                  Avaria[]
+  @@map("ofi_checklists")
 }
 
 
@@ -100,6 +101,7 @@ model ChecklistItem {
   checklist   Checklist  @relation(fields: [checklistId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([checklistId])
+  @@map("ofi_checklists_items")
 }
 
 model Avaria {
@@ -119,5 +121,6 @@ model Avaria {
   checklist   Checklist  @relation(fields: [checklistId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([checklistId])
+  @@map("ofi_checklists_avarias")
 }
 
