@@ -1,115 +1,161 @@
+// src/compras/cotacao.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CreateCotacaoDto } from './cotacao.dto';
 
-export type CreateItemInput = {
-  cod: string;
-  descricao: string;
-  marca?: string | null;
-  refFornecedor?: string | null; // request key (camelCase)
-  unidade?: string | null;
-  quantidade: number;
-  valor_unitario?: number; // opcional no create
-};
-
-export type CreateCotacaoInput = {
-  key: string;              // orcamento_compra
-  dados: CreateItemInput[]; // itens
-};
-
-export type UpdateCotacaoInput = CreateCotacaoInput & {
-  // em update, valor_unitario pode ser exigido no DTO
+type ListAllParams = {
+  empresa?: number;
+  page: number;
+  pageSize: number;
+  includeItems: boolean;
 };
 
 @Injectable()
 export class CotacaoService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {}
 
-  async list() {
-    return this.prisma.cotacao.findMany({
-      select: { id: true, orcamento_compra: true },
-      orderBy: { id: 'desc' },
-    });
-  }
+  async upsertCotacao(dto: CreateCotacaoDto) {
+    const { empresa, pedido_cotacao, itens } = dto;
 
-  async create(payload: CreateCotacaoInput) {
-    return this.prisma.$transaction(async (tx) => {
-      const cotacao = await tx.cotacao.create({
-        data: { orcamento_compra: payload.key },
+    const itensLower = (itens || []).map((i) => ({
+      pedido_cotacao: i.PEDIDO_COTACAO,
+      emissao: i.EMISSAO ? new Date(i.EMISSAO) : null,
+      pro_codigo: Number(i.PRO_CODIGO),
+      pro_descricao: i.PRO_DESCRICAO,
+      mar_descricao: i.MAR_DESCRICAO ?? null,
+      referencia: i.REFERENCIA ?? null,
+      unidade: i.UNIDADE ?? null,
+      quantidade: Number(i.QUANTIDADE),
+    }));
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.com_cotacao.upsert({
+        where: { pedido_cotacao },
+        create: { empresa, pedido_cotacao },
+        update: { empresa },
       });
 
-      if (payload.dados?.length) {
-        const itemsData: Prisma.ItemCotacaoCreateManyInput[] = payload.dados.map((i) => ({
-          cotacao_id: cotacao.id,
-          cod: i.cod,
-          descricao: i.descricao,
-          marca: i.marca ?? null,
-          ref_fornecedor: i.refFornecedor ?? null,
-          unidade: i.unidade ?? null,
-          quantidade: i.quantidade,
-          valor_unitario: i.valor_unitario ?? 0,
-          selecionado: false,
-          item_id: null,
-        }));
-        await tx.itemCotacao.createMany({ data: itemsData });
+      await tx.com_cotacao_itens.deleteMany({ where: { pedido_cotacao } });
+
+      if (itensLower.length > 0) {
+        await tx.com_cotacao_itens.createMany({ data: itensLower });
       }
-
-      return { message: 'Cotação e itens salvos com sucesso.', cotacao_id: cotacao.id };
     });
+
+    return { ok: true, empresa, pedido_cotacao, total_itens: itensLower.length };
   }
 
-  async get(id: number) {
-    const cotacao = await this.prisma.cotacao.findUnique({
-      where: { id },
-      include: { itens: true },
+  async getCotacao(empresa: number, pedido: number) {
+    const header = await this.prisma.com_cotacao.findUnique({
+      where: { pedido_cotacao: pedido },
+      select: { empresa: true, pedido_cotacao: true },
     });
-    if (!cotacao) throw new NotFoundException('Cotação não encontrada.');
-    return cotacao;
+
+    if (!header || header.empresa !== empresa) {
+      throw new NotFoundException('Pedido de cotação não encontrado.');
+    }
+
+    const itens = await this.prisma.com_cotacao_itens.findMany({
+      where: { pedido_cotacao: pedido },
+      orderBy: { pro_codigo: 'asc' },
+    });
+
+    const itensUpper = itens.map((r) => ({
+      PEDIDO_COTACAO: r.pedido_cotacao,
+      EMISSAO: r.emissao ? r.emissao.toISOString() : null,
+      PRO_CODIGO: r.pro_codigo,
+      PRO_DESCRICAO: r.pro_descricao,
+      MAR_DESCRICAO: r.mar_descricao,
+      REFERENCIA: r.referencia,
+      UNIDADE: r.unidade,
+      QUANTIDADE: r.quantidade,
+    }));
+
+    return {
+      empresa: header.empresa,
+      pedido_cotacao: header.pedido_cotacao,
+      total_itens: itensUpper.length,
+      itens: itensUpper,
+    };
   }
 
-  async update(id: number, payload: UpdateCotacaoInput) {
-    return this.prisma.$transaction(async (tx) => {
-      const existing = await tx.cotacao.findUnique({ where: { id } });
-      if (!existing) throw new NotFoundException('Cotação não encontrada.');
+  // <<< REESCRITO: sem relações >>>
+  async listAll({ empresa, page, pageSize, includeItems }: ListAllParams) {
+    const where = empresa != null ? { empresa } : {};
 
-      await tx.cotacao.update({
-        where: { id },
-        data: { orcamento_compra: payload.key },
+    const total = await this.prisma.com_cotacao.count({ where });
+
+    const headers = await this.prisma.com_cotacao.findMany({
+      where,
+      orderBy: { pedido_cotacao: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: { id: true, empresa: true, pedido_cotacao: true },
+    });
+
+    const pedidos = headers.map((h) => h.pedido_cotacao);
+
+    // count por pedido via groupBy
+    const counts = pedidos.length
+      ? await this.prisma.com_cotacao_itens.groupBy({
+          by: ['pedido_cotacao'],
+          where: { pedido_cotacao: { in: pedidos } },
+          _count: { _all: true },
+        })
+      : [];
+
+    const countMap = new Map<number, number>(
+      counts.map((c) => [c.pedido_cotacao, c._count._all]),
+    );
+
+    // itens (opcional) em uma query única e agrupados em memória
+    let itensMap = new Map<
+      number,
+      Array<{
+        PEDIDO_COTACAO: number;
+        EMISSAO: string | null;
+        PRO_CODIGO: number;
+        PRO_DESCRICAO: string;
+        MAR_DESCRICAO: string | null;
+        REFERENCIA: string | null;
+        UNIDADE: string | null;
+        QUANTIDADE: number;
+      }>
+    >();
+
+    if (includeItems && pedidos.length) {
+      const itens = await this.prisma.com_cotacao_itens.findMany({
+        where: { pedido_cotacao: { in: pedidos } },
+        orderBy: [{ pedido_cotacao: 'desc' }, { pro_codigo: 'asc' }],
       });
 
-      // Remove itens antigos e recria (espelhando seu Laravel)
-      await tx.itemCotacao.deleteMany({ where: { cotacao_id: id } });
+      itensMap = itens.reduce((map, r) => {
+        const arr = map.get(r.pedido_cotacao) ?? [];
+        arr.push({
+          PEDIDO_COTACAO: r.pedido_cotacao,
+          EMISSAO: r.emissao ? r.emissao.toISOString() : null,
+          PRO_CODIGO: r.pro_codigo,
+          PRO_DESCRICAO: r.pro_descricao,
+          MAR_DESCRICAO: r.mar_descricao,
+          REFERENCIA: r.referencia,
+          UNIDADE: r.unidade,
+          QUANTIDADE: r.quantidade,
+        });
+        map.set(r.pedido_cotacao, arr);
+        return map;
+      }, itensMap);
+    }
 
-      if (payload.dados?.length) {
-        const itemsData: Prisma.ItemCotacaoCreateManyInput[] = payload.dados.map((i) => ({
-          cotacao_id: id,
-          cod: i.cod,
-          descricao: i.descricao,
-          marca: i.marca ?? null,
-          ref_fornecedor: i.refFornecedor ?? null,
-          unidade: i.unidade ?? null,
-          quantidade: i.quantidade,
-          valor_unitario: i.valor_unitario ?? 0,
-          selecionado: false,
-          item_id: null,
-        }));
-        await tx.itemCotacao.createMany({ data: itemsData });
-      }
-
-      return { message: 'Cotação atualizada com sucesso.', cotacao_id: id };
+    const data = headers.map((h) => {
+      const base = {
+        empresa: h.empresa,
+        pedido_cotacao: h.pedido_cotacao,
+        total_itens: countMap.get(h.pedido_cotacao) ?? 0,
+      };
+      if (!includeItems) return base;
+      return { ...base, itens: itensMap.get(h.pedido_cotacao) ?? [] };
     });
-  }
 
-  async remove(id: number) {
-    return this.prisma.$transaction(async (tx: PrismaClient) => {
-      const found = await tx.cotacao.findUnique({ where: { id } });
-      if (!found) throw new NotFoundException('Cotação não encontrada.');
-
-      // Garanta deleção dos itens (se FK não está em CASCADE)
-      await tx.itemCotacao.deleteMany({ where: { cotacao_id: id } });
-      await tx.cotacao.delete({ where: { id } });
-
-      return { message: 'Cotação e itens associados removidos com sucesso.' };
-    });
+    return { total, page, pageSize, data };
   }
 }

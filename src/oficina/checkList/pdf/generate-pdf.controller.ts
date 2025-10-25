@@ -2,7 +2,9 @@
 import { Controller, Get, Param, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { GenerateChecklistPdfService } from './generate-pdf.service';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('checklists')
 @Controller('checklists')
 export class GenerateChecklistPdfController {
   constructor(private readonly pdfService: GenerateChecklistPdfService) {}

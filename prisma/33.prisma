@@ -1,13 +1,3 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  // provider = "sqlite"
-  provider = "postgres"
-  url      = env("DATABASE_URL")
-}
-
 model com_cotacao {
   id                String  @id @default(cuid())
   empresa           Int

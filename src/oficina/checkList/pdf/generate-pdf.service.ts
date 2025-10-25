@@ -1,7 +1,7 @@
 // src/oficina/checkListPdf/generate-pdf.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -232,11 +232,11 @@ export class GenerateChecklistPdfService {
   }
 
   async generatePdfBuffer(id: string): Promise<Buffer> {
-    const c = await this.prisma.checklist.findUnique({
+    const c = await this.prisma.ofi_checklists.findUnique({
       where: { id },
       include: {
-        checklistItems: true,
-        avarias: true,
+        ofi_checklists_items: true,
+        ofi_checklists_avarias: true,
       },
     });
     if (!c) throw new NotFoundException('Checklist não encontrado');
@@ -337,7 +337,7 @@ export class GenerateChecklistPdfService {
 
     // Checklist (DUAS TABELAS)
     this.addSectionTitle(doc, 'Checklist de Itens', margin);
-    const checklist = (c.checklistItems || []).map((i) => ({ item: i.item, status: i.status }));
+    const checklist = (c.ofi_checklists_items || []).map((i) => ({ item: i.item, status: i.status }));
     if (checklist.length) {
       this.writeTwoTablesChecklist(doc, checklist, margin);
     } else {
@@ -348,7 +348,7 @@ export class GenerateChecklistPdfService {
 
     // Avarias
     this.addSectionTitle(doc, 'Avarias Registradas', margin);
-    const avariasLite = (c.avarias || []).map((a) => ({
+    const avariasLite = (c.ofi_checklists_avarias || []).map((a) => ({
       peca: a.peca ?? '',
       tipo: a.tipo ?? '',
       observacoes: a.observacoes ?? '',

@@ -1,11 +1,11 @@
+// src/compras/cotacao.module.ts
 import { Module } from '@nestjs/common';
 import { CotacaoController } from './cotacao.controller';
 import { CotacaoService } from './cotacao.service';
-import { PrismaModule } from '../../prisma/prisma.module'; // remova se PrismaModule for @Global
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Module({
-  imports: [PrismaModule], // se PrismaModule é @Global, pode remover
   controllers: [CotacaoController],
-  providers: [CotacaoService],
+  providers: [CotacaoService, PrismaService],
 })
 export class CotacaoModule {}

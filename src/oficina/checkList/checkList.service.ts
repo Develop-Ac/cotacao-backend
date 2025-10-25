@@ -34,7 +34,7 @@ export class ChecklistsService {
     const assinaturaResponsavel =
       body.assinaturasresponsavelBase64 ?? body.assinaturaResponsavelBase64 ?? null;
 
-    return this.prisma.checklist.create({
+    return this.prisma.ofi_checklists.create({
       data: {
         osInterna: body.osInterna ?? null,
         dataHoraEntrada: body.dataHoraEntrada ? new Date(body.dataHoraEntrada) : null,
@@ -56,7 +56,7 @@ export class ChecklistsService {
         assinaturasresponsavelBase64: assinaturaResponsavel,
 
         // relacionamentos
-        checklistItems: body.checklist?.length
+        ofi_checklists_items: body.checklist?.length
           ? {
               create: body.checklist.map((i) => ({
                 item: i.item,
@@ -65,7 +65,7 @@ export class ChecklistsService {
             }
           : undefined,
 
-        avarias: body.avarias?.length
+        ofi_checklists_avarias: body.avarias?.length
           ? {
               create: body.avarias.map((a) => ({
                 tipo: a.tipo ?? null,
@@ -87,32 +87,41 @@ export class ChecklistsService {
   }
 
   /** LIST (com paginação + busca) */
-async findAll(query: ListQuery) {
+  async findAll(query: ListQuery) {
     const page = Math.max(1, Number(query.page ?? 1));
     const pageSize = Math.min(100, Math.max(1, Number(query.pageSize ?? 10)));
     const skip = (page - 1) * pageSize;
 
     const search = (query.search ?? '').toString().trim();
-    const orderByField = (query.orderBy ?? 'createdAt') as 'createdAt' | 'dataHoraEntrada';
+    const orderByField = (query.orderBy ?? 'createdAt') as
+      | 'createdAt'
+      | 'dataHoraEntrada';
     const orderDir = (query.orderDir ?? 'desc') as 'asc' | 'desc';
 
-    // use o enum do Prisma para o mode (ou 'insensitive' as const)
-    const insensitive = Prisma.QueryMode.insensitive;
+    // CORREÇÃO: Usar a string literal 'insensitive' para o modo de consulta
+    const insensitive = 'insensitive' as const;
 
     // TIPAR explicitamente o where evita inferência ruim do TS
-    const where: Prisma.ChecklistWhereInput | undefined = search
-      ? {
-          OR: [
-            { osInterna:    { contains: search, mode: insensitive } },
-            { clienteNome:  { contains: search, mode: insensitive } },
-            { veiculoPlaca: { contains: search, mode: insensitive } },
-          ],
-        }
-      : undefined;
+
+const where: Prisma.ofi_checklistsWhereInput | undefined = search
+  ? {
+      OR: [
+        { osInterna:  { contains: search }, },
+        { clienteNome:{ contains: search }, },
+        { veiculoPlaca:{ contains: search, } },
+      ],
+    }
+  : undefined;
+
+const rows = await this.prisma.ofi_checklists.findMany({
+  where,
+  orderBy: { createdAt: 'desc' },
+  take: 50,
+});
 
     const [total, data] = await this.prisma.$transaction([
-      this.prisma.checklist.count({ where }),
-      this.prisma.checklist.findMany({
+      this.prisma.ofi_checklists.count({ where }),
+      this.prisma.ofi_checklists.findMany({
         where,
         orderBy: { [orderByField]: orderDir },
         skip,
@@ -143,11 +152,11 @@ async findAll(query: ListQuery) {
 
   /** GET BY ID (com relacionamentos) */
   async findOne(id: string) {
-    const item = await this.prisma.checklist.findUnique({
+    const item = await this.prisma.ofi_checklists.findUnique({
       where: { id },
       include: {
-        checklistItems: true,
-        avarias: true,
+        ofi_checklists_items: true,
+        ofi_checklists_avarias: true,
       },
     });
 
@@ -160,10 +169,10 @@ async findAll(query: ListQuery) {
   /** DELETE */
   async remove(id: string) {
     // garante que existe antes de excluir
-    const exists = await this.prisma.checklist.findUnique({ where: { id } });
+    const exists = await this.prisma.ofi_checklists.findUnique({ where: { id } });
     if (!exists) throw new NotFoundException('Checklist não encontrado');
 
-    await this.prisma.checklist.delete({ where: { id } });
+    await this.prisma.ofi_checklists.delete({ where: { id } });
     return { ok: true };
   }
 }

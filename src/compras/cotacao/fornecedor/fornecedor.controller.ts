@@ -1,0 +1,25 @@
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { FornecedorService } from './fornecedor.service';
+import { CreateFornecedorDto } from './fornecedor.dto';
+import { ApiTags } from '@nestjs/swagger';
+
+@ApiTags('Cotação de Pedidos')
+@Controller('fornecedor')
+export class FornecedorController {
+  constructor(private readonly service: FornecedorService) {}
+
+  @Post()
+  async create(@Body() dto: CreateFornecedorDto) {
+    // executa upsert local **e** envia ao Next
+    return this.service.upsertLocalEEnviarParaNext(dto);
+  }
+
+  // GET /fornecedor?pedido_cotacao=3957
+  @Get()
+  async list(@Query('pedido_cotacao') pedido: string) {
+    const n = Number(pedido);
+    if (!Number.isFinite(n)) return { data: [], total: 0 };
+    const data = await this.service.listarFornecedoresPorPedido(n);
+    return { data, total: data.length };
+  }
+}
