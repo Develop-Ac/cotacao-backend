@@ -71,7 +71,7 @@ export class OrdemServicoService {
         JOIN CLIENTES CLI
             ON CLI.EMPRESA   = OS.EMPRESA
         AND CLI.CLI_CODIGO = OS.CLI_CODIGO
-        WHERE OS.ORDEM_SERVICO = '${osNumero}'
+        WHERE OS.ORDEM_SERVICO = ${osNumero}
         '
         );
       `;
