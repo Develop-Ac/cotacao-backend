@@ -2,7 +2,9 @@
 import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
 import { OrdemServicoService } from './ordem-servico.service';
 import { OsResponseDto } from './dto/os-response.dto';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('checklists')
 @Controller('ordens-servico')
 export class OrdemServicoController {
   constructor(private readonly service: OrdemServicoService) {}

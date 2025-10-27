@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { RouterModule } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-// import { UsuarioModule } from './usuario/usuario.module';
+import { UsuarioModule } from './usuario/usuario.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { LoginModule } from './login/login.module';
 import { ChecklistsModule } from './oficina/checkList/checklist.module';
@@ -18,17 +18,17 @@ import { ImagesModule } from './oficina/checkList/img/img.module';
 
 @Module({
 imports: [
-    // UsuarioModule,
+    UsuarioModule,
     PrismaModule,
     LoginModule,
     ChecklistsModule,
     GenerateChecklistPdfModule,
     ImagesModule,
-    // OpenQueryModule,
-    // DatabaseModule,
-    // CotacaoModule,
-    // FornecedorModule,
-    // CotacaoSyncModule,
+    OpenQueryModule,
+    DatabaseModule,
+    CotacaoModule,
+    FornecedorModule,
+    CotacaoSyncModule,
     // UtilsModule,
     OrdemServicoModule,
 
@@ -38,10 +38,10 @@ imports: [
       { path: 'oficina', module: GenerateChecklistPdfModule },
       { path: 'oficina', module: OrdemServicoModule },
       { path: 'oficina', module: ImagesModule },
-      // { path: 'compras', module: OpenQueryModule },
-      // { path: 'compras', module: CotacaoModule },
-      // { path: 'compras', module: FornecedorModule },
-      // { path: 'compras', module: CotacaoSyncModule },
+      { path: 'compras', module: OpenQueryModule },
+      { path: 'compras', module: CotacaoModule },
+      { path: 'compras', module: FornecedorModule },
+      { path: 'compras', module: CotacaoSyncModule },
     ]),
   ],
   controllers: [AppController],

@@ -1,7 +1,9 @@
 // src/cotacao-sync/cotacao-sync.controller.ts
 import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
 import { CotacaoSyncService } from './cotacao-sync.service';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Cotação de Pedidos')
 @Controller('cotacao-sync')
 export class CotacaoSyncController {
   constructor(private readonly service: CotacaoSyncService) {}

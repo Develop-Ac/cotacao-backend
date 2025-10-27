@@ -10,10 +10,10 @@ export class OrdemServicoService {
   // ---- Config MSSQL "openquery" embutida ----
   private getMssqlConfig(): sql.config {
     return {
-      server: '192.168.1.145',
-      port: 14333,
-      database: 'Master',
-      user: 'sa',
+      server: '192.168.1.146',
+      port: 1433,
+      database: 'BI',
+      user: 'BI_AC',
       password: 'Ac@2025acesso',
       options: {
         encrypt: false,
@@ -52,24 +52,28 @@ export class OrdemServicoService {
       // IMPORTANTE: esta query está em T-SQL (SQL Server).
       // Se suas tabelas estiverem em outro schema, qualifique (ex: dbo.ORDENS_SERVICO).
       const query = `
+        SELECT *
+        FROM OPENQUERY(
+        CONSULTA,
+        '
         SELECT
-          OS.ORDEM_SERVICO,
-          OS.DT_EMISSAO,
-          OS.CLI_CODIGO,
-          CLI.CLI_NOME,
-          CLI.CPF_CNPJ,
-          CLI.FONE,
-          (
-            ISNULL(CLI.ENDERECO, '') + ', ' +
-            ISNULL(CLI.BAIRRO,  '') + ', ' +
-            ISNULL(CLI.CIDADE,  '') + ' - ' +
-            ISNULL(CLI.UF,      '')
-          ) AS ENDERECO_COMPLETO
-        FROM ORDENS_SERVICO AS OS
-        JOIN CLIENTES AS CLI
-             ON CLI.EMPRESA = OS.EMPRESA
-            AND CLI.CLI_CODIGO = OS.CLI_CODIGO
-        WHERE OS.ORDEM_SERVICO = @os
+            OS.ORDEM_SERVICO,
+            OS.DT_EMISSAO,
+            OS.CLI_CODIGO,
+            CLI.CLI_NOME,
+            CLI.CPF_CNPJ,
+            CLI.FONE,
+            (COALESCE(CLI.ENDERECO, '''') || '', '' ||
+            COALESCE(CLI.BAIRRO,  '''') || '', '' ||
+            COALESCE(CLI.CIDADE,  '''') || '' - '' ||
+            COALESCE(CLI.UF,      '''')) AS ENDERECO_COMPLETO
+        FROM ORDENS_SERVICO OS
+        JOIN CLIENTES CLI
+            ON CLI.EMPRESA   = OS.EMPRESA
+        AND CLI.CLI_CODIGO = OS.CLI_CODIGO
+        WHERE OS.ORDEM_SERVICO = ''157898''
+        '
+        );
       `;
 
       const result = await req.query<{

@@ -3,7 +3,9 @@ import { ImagesService } from './img.service';
 import { GetImagesParamDto } from './img.dto';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('checklists')
 @Controller('img')
 export class ImagesController {
   constructor(private readonly service: ImagesService) {}

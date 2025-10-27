@@ -3,9 +3,17 @@ generator client {
 }
 
 datasource db {
-  // provider = "sqlite"
-  provider = "postgres"
+  provider = "sqlite"
+  // provider = "postgres"
   url      = env("DATABASE_URL")
+}
+
+model com_usuario {
+  id                String  @id @default(cuid())
+  nome              String
+  email             String  @unique
+  senha             String
+  trash             Int
 }
 
 model com_cotacao {
