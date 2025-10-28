@@ -29,6 +29,7 @@ export class PedidoService {
     const candidates = [
       path.resolve(process.cwd(), 'assets', 'icon-192.png'),
       path.resolve(__dirname, '..', '..', '..', 'assets', 'icon-192.png'),
+      path.resolve(__dirname, '..', '..', 'assets', 'icon-192.png'),
       path.resolve(process.cwd(), 'src', 'assets', 'icon-192.png'),
     ];
     for (const p of candidates) if (fs.existsSync(p)) return p;
