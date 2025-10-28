@@ -191,18 +191,11 @@ export class PedidoService {
 
       yLeft += 4;
       doc.font('Helvetica-Bold').fontSize(10).fillColor('#000');
-      doc.text('FORNECEDOR', leftX, yLeft, {
+      doc.text(`FORNECEDOR: ${fornecedor.FOR_NOME}`, leftX, yLeft, {
         width: leftColWidth,
         align: 'left',
       });
       yLeft += 12;
-
-      doc.font('Helvetica').fontSize(9).fillColor('#000');
-      const nome = linha(fornecedor.FOR_NOME);
-      if (nome) {
-        doc.text(nome, leftX, yLeft, { width: leftColWidth, align: 'left' });
-        yLeft += 12;
-      }
 
       const contato = linha(fornecedor.CONTATO);
       if (contato) {
