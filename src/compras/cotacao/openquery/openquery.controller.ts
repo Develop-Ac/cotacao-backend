@@ -1,11 +1,11 @@
 import { BadRequestException, Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
-import { OpenQueryService } from './openquery.service';
+import { ConsultaOpenqueryService } from './openquery.service';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Cotação de Pedidos')
 @Controller('openquery')
 export class OpenQueryController {
-  constructor(private readonly service: OpenQueryService) {}
+  constructor(private readonly service: ConsultaOpenqueryService) {}
 
   // GET /openquery/pedido/3957?empresa=3
   @Get('pedido/:pedido')

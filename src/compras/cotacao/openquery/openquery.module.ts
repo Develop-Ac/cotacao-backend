@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
 import { OpenQueryController } from './openquery.controller';
-import { OpenQueryService } from './openquery.service';
+import { ConsultaOpenqueryService } from './openquery.service';
+import { HttpModule } from '@nestjs/axios';
+import { OpenQueryModule } from 'src/shared/database/openquery/openquery.module';
 
 @Module({
+  imports: [HttpModule, OpenQueryModule], 
   controllers: [OpenQueryController],
-  providers: [OpenQueryService],
+  providers: [ConsultaOpenqueryService],
 })
-export class OpenQueryModule {}
+export class OpenQueryHttpModule {}

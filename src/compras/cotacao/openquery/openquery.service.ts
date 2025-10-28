@@ -1,5 +1,5 @@
-import { Inject, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
-import type { ConnectionPool } from 'mssql';
+import { Injectable, InternalServerErrorException, NotFoundException, Logger } from '@nestjs/common';
+import { OpenQueryService as MssqlOpenQuery } from '../../../shared/database/openquery/openquery.service';
 
 type PedidoCotacaoRow = {
   pedido_cotacao: number;
@@ -27,14 +27,26 @@ type FornecedorRow = {
   contato: string | null;
 };
 
+/**
+ * Serviço que consulta o Firebird via Linked Server (OPENQUERY [CONSULTA]),
+ * utilizando o gerenciador de conexão/queries `MssqlOpenQuery`.
+ */
 @Injectable()
-export class OpenQueryService {
-  constructor(@Inject('MSSQL_POOL') private readonly pool: ConnectionPool) {}
+export class ConsultaOpenqueryService {
+  private readonly logger = new Logger(ConsultaOpenqueryService.name);
+
+  constructor(private readonly mssql: MssqlOpenQuery) {}
+
+  /** Escapa aspas simples para o literal T-SQL do OPENQUERY */
+  private fbLiteral(sql: string): string {
+    return sql.replace(/'/g, "''");
+  }
 
   /**
-   * Busca itens do pedido de cotação no Firebird via Linked Server (CONSULTA)
+   * Busca itens de um pedido de cotação no Firebird via Linked Server (CONSULTA).
    */
   async buscarPorEmpresaPedido(empresa: number, pedido: number): Promise<PedidoCotacaoRow[]> {
+    // Firebird SQL (rodará do outro lado do linked server)
     const fbSql = `
       SELECT
           orc.pedido_cotacao,
@@ -59,32 +71,31 @@ export class OpenQueryService {
         AND orc.pedido_cotacao = ${pedido}
     `;
 
-    const tsql = `SELECT * FROM OPENQUERY([CONSULTA], '${fbSql.replace(/'/g, "''")}')`;
+    // T-SQL que chama o OPENQUERY
+    const tsql = `SELECT * FROM OPENQUERY([CONSULTA], '${this.fbLiteral(fbSql)}')`;
 
     try {
-      const result = await this.pool.request().query<PedidoCotacaoRow>(tsql);
-      return (result.recordset || []).map((r) => ({
+      const rows = await this.mssql.query<PedidoCotacaoRow>(tsql, {}, { timeout: 60_000, allowZeroRows: true });
+
+      // normaliza emissao para ISO string quando vier Date
+      return (rows || []).map((r) => ({
         ...r,
-        emissao: r.emissao instanceof Date ? r.emissao.toISOString() : r.emissao,
+        emissao: r?.emissao instanceof Date ? r.emissao.toISOString() : r?.emissao ?? null,
       }));
     } catch (err: any) {
-      console.error('[OpenQuery][pedido] error:', {
-        message: err?.message,
-        number: err?.number,
-        code: err?.code,
-        state: err?.state,
-        class: err?.class,
-        lineNumber: err?.lineNumber,
-      });
+      this.logger.error(
+        `[OPENQUERY pedido] ${err?.message || err}`,
+      );
       throw new InternalServerErrorException('Falha ao buscar pedido de cotação');
     }
   }
 
   /**
-   * Busca fornecedor por for_codigo (empresa fixa = 3)
+   * Busca dados do fornecedor por for_codigo (empresa fixa = 3).
    */
   async buscarFornecedorPorCodigo(forCodigo: number): Promise<FornecedorRow> {
-    const empresa = 3; // fixo
+    const empresa = 3; // conforme sua regra atual
+
     const fbSql = `
       SELECT
         fo.for_codigo,
@@ -105,23 +116,18 @@ export class OpenQueryService {
       ROWS 1
     `;
 
-    const tsql = `SELECT * FROM OPENQUERY([CONSULTA], '${fbSql.replace(/'/g, "''")}')`;
+    const tsql = `SELECT * FROM OPENQUERY([CONSULTA], '${this.fbLiteral(fbSql)}')`;
 
     try {
-      const result = await this.pool.request().query<FornecedorRow>(tsql);
-      const row = (result.recordset || [])[0];
+      const rows = await this.mssql.query<FornecedorRow>(tsql, {}, { timeout: 60_000, allowZeroRows: true });
+      const row = rows[0];
       if (!row) throw new NotFoundException('Fornecedor não encontrado.');
       return row;
     } catch (err: any) {
       if (err?.status === 404) throw err;
-      console.error('[OpenQuery][fornecedor by for_codigo] error:', {
-        message: err?.message,
-        number: err?.number,
-        code: err?.code,
-        state: err?.state,
-        class: err?.class,
-        lineNumber: err?.lineNumber,
-      });
+      this.logger.error(
+        `[OPENQUERY fornecedor] ${err?.message || err}`,
+      );
       throw new InternalServerErrorException('Falha ao buscar fornecedor');
     }
   }

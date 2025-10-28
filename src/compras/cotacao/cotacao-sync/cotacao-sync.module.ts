@@ -5,7 +5,8 @@ import { ConfigModule } from '@nestjs/config';
 import { CotacaoSyncController } from './cotacao-sync.controller';
 import { CotacaoSyncService } from './cotacao-sync.service';
 import { PrismaClient } from '@prisma/client';
-import { DatabaseModule } from '../../cotacao/openquery/database/database.module';
+import { OpenQueryModule } from 'src/shared/database/openquery/openquery.module';
+// import { DatabaseModule } from '../../cotacao/openquery/database/database.module';
 
 @Module({
   imports: [
@@ -14,7 +15,8 @@ import { DatabaseModule } from '../../cotacao/openquery/database/database.module
       timeout: 7000,
       maxRedirects: 2,
     }),
-    DatabaseModule,
+    OpenQueryModule
+    // DatabaseModule,
   ],
   controllers: [CotacaoSyncController],
   providers: [

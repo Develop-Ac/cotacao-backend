@@ -7,14 +7,14 @@ import { PrismaModule } from './prisma/prisma.module';
 import { LoginModule } from './login/login.module';
 import { ChecklistsModule } from './oficina/checkList/checklist.module';
 import { GenerateChecklistPdfModule } from './oficina/checkList/pdf/generate-pdf.module';
-import { OpenQueryModule } from './compras/cotacao/openquery/openquery.module';
-import { DatabaseModule } from './compras/cotacao/openquery/database/database.module';
+import { OpenQueryHttpModule } from './compras/cotacao/openquery/openquery.module';
 import { CotacaoModule } from './compras/cotacao/cotacao.module';
 import { FornecedorModule } from './compras/cotacao/fornecedor/fornecedor.module';
 import { CotacaoSyncModule } from './compras/cotacao/cotacao-sync/cotacao-sync.module';
 import { UtilsModule } from './utils/utils.module';
 import { OrdemServicoModule } from './oficina/checkList/ordem-servico/ordem-servico.module';
 import { ImagesModule } from './oficina/checkList/img/img.module';
+import { PedidoModule } from './compras/cotacao/pedido/pedido.module';
 
 @Module({
 imports: [
@@ -24,13 +24,13 @@ imports: [
     ChecklistsModule,
     GenerateChecklistPdfModule,
     ImagesModule,
-    OpenQueryModule,
-    DatabaseModule,
+    OpenQueryHttpModule,
     CotacaoModule,
     FornecedorModule,
     CotacaoSyncModule,
     // UtilsModule,
     OrdemServicoModule,
+    PedidoModule,
 
     // ⬇️ Prefixa *somente* esses módulos com /compras
     RouterModule.register([
@@ -38,10 +38,11 @@ imports: [
       { path: 'oficina', module: GenerateChecklistPdfModule },
       { path: 'oficina', module: OrdemServicoModule },
       { path: 'oficina', module: ImagesModule },
-      { path: 'compras', module: OpenQueryModule },
-      { path: 'compras', module: CotacaoModule },
+      { path: 'compras', module: OpenQueryHttpModule }, 
+      { path: 'compras', module: CotacaoModule }, 
       { path: 'compras', module: FornecedorModule },
       { path: 'compras', module: CotacaoSyncModule },
+      { path: 'compras', module: PedidoModule }
     ]),
   ],
   controllers: [AppController],

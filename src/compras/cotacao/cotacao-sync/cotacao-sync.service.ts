@@ -6,6 +6,9 @@ import { firstValueFrom } from 'rxjs';
 import { PrismaClient, Prisma } from '@prisma/client';
 import * as sql from 'mssql';
 
+// ✅ novo: serviço compartilhado que gerencia o pool/conexão MSSQL (OpenQuery)
+import { OpenQueryService } from '../../../shared/database/openquery/openquery.service';
+
 type NextFornecedor = {
   pedido_cotacao: number;
   for_codigo: number;
@@ -27,53 +30,14 @@ type NextFornecedor = {
 @Injectable()
 export class CotacaoSyncService {
   private readonly logger = new Logger(CotacaoSyncService.name);
-  private mssqlPool?: sql.ConnectionPool;
 
   constructor(
     private readonly prisma: PrismaClient,
     private readonly http: HttpService,
     private readonly config: ConfigService,
+    // ✅ injeta o serviço de OpenQuery (centraliza pool/config/healthcheck)
+    private readonly openQuery: OpenQueryService,
   ) {}
-
-  // === CONFIG MSSQL hardcoded (timeouts estendidos) ===
-  private getMssqlConfig(): sql.config {
-    return {
-      server: '192.168.1.145',
-      port: 14333,
-      database: 'BI',
-      user: 'BI_AC',
-      password: 'Ac@2025acesso',
-      options: {
-        encrypt: false,
-        trustServerCertificate: true,
-        enableArithAbort: true,
-        requestTimeout: 3_600_000,
-        cancelTimeout: 3_600_000,
-        connectTimeout: 60_000,
-      },
-      pool: { max: 10, min: 0, idleTimeoutMillis: 30_000 },
-    };
-  }
-
-  /** Abre (uma vez) e retorna o pool MSSQL. */
-  private async getMssql(): Promise<sql.ConnectionPool> {
-    if (this.mssqlPool) return this.mssqlPool;
-
-    const cfg = this.getMssqlConfig();
-    const pool = new sql.ConnectionPool(cfg);
-    await pool.connect();
-    try {
-      const r = new sql.Request(pool);
-      r.timeout = 60_000;
-      const test = await r.query('SELECT 1 AS ok');
-      this.logger.log(`[MSSQL] conectado, teste = ${test.recordset?.[0]?.ok}`);
-    } catch (e: any) {
-      this.logger.error('[MSSQL] Falha no teste de conexão: ' + (e?.message || e));
-      throw e;
-    }
-    this.mssqlPool = pool;
-    return pool;
-  }
 
   private parseIntStrict(label: string, v: unknown): number {
     const n = Number(v);
@@ -94,6 +58,8 @@ export class CotacaoSyncService {
    * UM SELECT SÓ: busca CUSTO_FABRICA, CUSTO_MEDIO, ESTOQUE_DISPONIVEL
    * em [dbo].[Stage_Produtos] para TODA a lista de códigos (deduplicada) via IN (...).
    * Retorna Map<pro_codigo, { custo_fabrica, custo_medio, estoque_disponivel }>.
+   *
+   * ⚠️ Requer que o OpenQueryService entregue um pool MSSQL conectado.
    */
   private async fetchProdutosInfoOneShot(
     codigos: number[],
@@ -113,14 +79,14 @@ export class CotacaoSyncService {
     );
     if (unique.length === 0) return map;
 
-    // monta lista literal segura (apenas números)
+    // Monta lista literal segura (apenas números)
     const inList = unique.join(',');
 
-    const pool = await this.getMssql();
+    // ✅ usa o pool fornecido pelo OpenQueryService
+    const pool = await this.openQuery.getPool();
     const req = new sql.Request(pool);
     req.timeout = 60_000;
 
-    // empresa como parâmetro; códigos como literais (um SELECT só, sem TVP)
     const query = `
       SELECT
           PRO.PRO_CODIGO,
@@ -211,7 +177,7 @@ export class CotacaoSyncService {
       ? data
       : [];
 
-    // 2) Persistir local
+    // 2) Persistir local (espelho)
     if (fornecedores.length > 0) {
       await this.prisma.$transaction(async (tx) => {
         for (const forn of fornecedores) {
@@ -249,7 +215,7 @@ export class CotacaoSyncService {
       });
     }
 
-    // 3) Ler local e enriquecer via ERP — pega TODOS os códigos e consulta em UM SELECT
+    // 3) Ler local e enriquecer via ERP — coleta todos os códigos e consulta em UM SELECT
     const fornecedoresLocal = await this.prisma.com_cotacao_for.findMany({
       where: { pedido_cotacao },
       include: { itens: true },
@@ -275,7 +241,7 @@ export class CotacaoSyncService {
         };
         return {
           ...it,
-          // 🔁 agora retornando custo_fabrica (antes era preco_custo)
+          // 🔁 retornando custo_fabrica/custo_medio/estoque_disponivel do ERP
           custo_fabrica: extra.custo_fabrica,
           custo_medio: extra.custo_medio,
           estoque_disponivel: extra.estoque_disponivel,
