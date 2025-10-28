@@ -191,7 +191,14 @@ export class PedidoService {
 
       yLeft += 4;
       doc.font('Helvetica-Bold').fontSize(10).fillColor('#000');
-      doc.text(`FORNECEDOR: ${fornecedor.FOR_NOME}`, leftX, yLeft, {
+
+      const nomeFornecedor =
+        (fornecedor.FOR_NOME ?? '').length > 28
+            ? fornecedor.FOR_NOME?.slice(0, 27) + '…'
+            : fornecedor.FOR_NOME ?? '';
+
+
+      doc.text(`FORNECEDOR: ${nomeFornecedor}`, leftX, yLeft, {
         width: leftColWidth,
         align: 'left',
       });
