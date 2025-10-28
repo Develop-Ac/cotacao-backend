@@ -3,7 +3,7 @@ import { ImagesService } from './img.service';
 import { GetImagesParamDto } from './img.dto';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('checklists')
 @Controller('img')
@@ -11,6 +11,7 @@ export class ImagesController {
   constructor(private readonly service: ImagesService) {}
 
   @Get(':id')
+  @ApiOperation({ summary: 'Lista imagens do checklist' })
   async list(@Param('id') idParam: string) {
     // validação leve via class-validator (sem pipes globais)
     const dto = plainToInstance(GetImagesParamDto, { id: idParam });

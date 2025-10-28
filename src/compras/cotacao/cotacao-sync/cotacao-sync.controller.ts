@@ -1,7 +1,7 @@
 // src/cotacao-sync/cotacao-sync.controller.ts
 import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
 import { CotacaoSyncService } from './cotacao-sync.service';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Cotação de Pedidos')
 @Controller('cotacao-sync')
@@ -9,6 +9,7 @@ export class CotacaoSyncController {
   constructor(private readonly service: CotacaoSyncService) {}
 
   @Get(':pedido_cotacao')
+  @ApiOperation({ summary: 'Sincroniza e lista por pedido_cotacao' })
   async syncAndList(
     @Param('pedido_cotacao', ParseIntPipe) pedido_cotacao: number,
   ) {

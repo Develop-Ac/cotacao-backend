@@ -2,7 +2,7 @@
 import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
 import { OrdemServicoService } from './ordem-servico.service';
 import { OsResponseDto } from './dto/os-response.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('checklists')
 @Controller('ordens-servico')
@@ -11,6 +11,7 @@ export class OrdemServicoController {
 
   // GET /ordens-servico/:os
   @Get(':os')
+  @ApiOperation({ summary: 'Obtem ordem de servico por numero' })
   async getOs(@Param('os', ParseIntPipe) os: number): Promise<OsResponseDto> {
     return this.service.getByNumero(os);
   }

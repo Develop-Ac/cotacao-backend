@@ -2,7 +2,7 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
 import { CotacaoService } from './cotacao.service';
 import { CreateCotacaoDto } from './cotacao.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Cotação de Pedidos')
 @Controller('pedidos-cotacao')
@@ -11,11 +11,13 @@ export class CotacaoController {
 
   // POST /compras/pedidos-cotacao
   @Post()
+  @ApiOperation({ summary: 'Cria ou atualiza cotacao' })
   async create(@Body() dto: CreateCotacaoDto) {
     return this.service.upsertCotacao(dto);
   }
 
   @Get()
+  @ApiOperation({ summary: 'Lista cotacoes (paginacao/opcoes)' })
   async getAll(
     @Query('empresa') empresaQ?: string,
     @Query('page') pageQ?: string,
@@ -34,6 +36,7 @@ export class CotacaoController {
 
   // GET /compras/pedidos-cotacao/:pedido?empresa=3
   @Get(':pedido')
+  @ApiOperation({ summary: 'Obtem cotacao por pedido e empresa' })
   async getOne(
     @Param('pedido', ParseIntPipe) pedido: number,
     @Query('empresa', ParseIntPipe) empresa: number,

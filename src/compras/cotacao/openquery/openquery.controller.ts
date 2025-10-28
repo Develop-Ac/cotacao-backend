@@ -1,6 +1,6 @@
 import { BadRequestException, Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
 import { ConsultaOpenqueryService } from './openquery.service';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Cotação de Pedidos')
 @Controller('openquery')
@@ -9,6 +9,7 @@ export class OpenQueryController {
 
   // GET /openquery/pedido/3957?empresa=3
   @Get('pedido/:pedido')
+  @ApiOperation({ summary: 'Busca itens do pedido' })
   async getPedido(
     @Param('pedido', ParseIntPipe) pedido: number,
     @Query('empresa') empresaQ?: string,
@@ -25,6 +26,7 @@ export class OpenQueryController {
 
   // GET /openquery/fornecedor/123
   @Get('fornecedor/:forCodigo')
+  @ApiOperation({ summary: 'Busca fornecedor por codigo' })
   async getFornecedorPorCodigo(@Param('forCodigo', ParseIntPipe) forCodigo: number) {
     if (!Number.isFinite(forCodigo)) {
       throw new BadRequestException('forCodigo inválido.');
