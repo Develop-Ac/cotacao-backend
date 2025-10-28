@@ -197,6 +197,7 @@ export class PedidoService {
       });
       yLeft += 12;
 
+      doc.font('Helvetica').fontSize(9).fillColor('#000');
       const contato = linha(fornecedor.CONTATO);
       if (contato) {
         doc.text(contato, leftX, yLeft, { width: leftColWidth, align: 'left' });
