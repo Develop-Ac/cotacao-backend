@@ -25,14 +25,42 @@ export class PedidoService {
   ) {}
 
   /* ----------------------- Utils ----------------------- */
+  private clampText(s: string | null | undefined, max: number) {
+    const v = (s ?? '').trim();
+    return v.length > max ? v.slice(0, max - 1) + '…' : v;
+  }
+
   private resolveLogoPath(): string | null {
+    // 1) Permitir override por ENV (robusto em Docker/prod)
+    const envPath = process.env.PUBLIC_LOGO_PATH;
+    if (envPath) {
+      try {
+        const abs = path.resolve(envPath);
+        if (fs.existsSync(abs)) return abs;
+      } catch {}
+    }
+
+    // 2) Candidatos comuns em dev e produção (dist/)
     const candidates = [
-      path.resolve(process.cwd(), 'assets', 'icon-192.png'),
-      path.resolve(__dirname, '..', '..', '..', 'assets', 'icon-192.png'),
+      // dist
+      path.resolve(process.cwd(), 'dist', 'assets', 'icon-192.png'),
+      path.resolve(__dirname, '..', '..', '..', 'assets', 'icon-192.png'), // quando __dirname está em dist/src/pedido
       path.resolve(__dirname, '..', '..', 'assets', 'icon-192.png'),
+
+      // src / root
+      path.resolve(process.cwd(), 'assets', 'icon-192.png'),
       path.resolve(process.cwd(), 'src', 'assets', 'icon-192.png'),
     ];
-    for (const p of candidates) if (fs.existsSync(p)) return p;
+
+    for (const p of candidates) {
+      try {
+        if (fs.existsSync(p)) return p;
+      } catch {}
+    }
+
+    // Log útil para diagnosticar (não interrompe o PDF)
+    // eslint-disable-next-line no-console
+    console.warn('[PDF] Logo não encontrada. Candidatos testados:', candidates);
     return null;
   }
 
@@ -58,7 +86,6 @@ export class PedidoService {
       SELECT FOR_NOME, CELULAR, FONE, CONTATO, EMAIL
       FROM OPENQUERY(CONSULTA, '${inner}')
     `;
-    // (opção: "SELECT * FROM OPENQUERY(...)" também funcionaria)
   }
 
   private async getFornecedor(forCodigo: number): Promise<FornecedorRow | undefined> {
@@ -130,31 +157,35 @@ export class PedidoService {
     const usableWidth =
       doc.page.width - doc.page.margins.left - doc.page.margins.right;
 
-    // Logo
+    // Logo (usa Buffer + fit para evitar problemas de path e distorção)
     const logoPath = this.resolveLogoPath();
     const logoX = startX;
     const logoY = startY;
-    const logoWidth = 70;
-    const logoHeight = 70;
+    const logoW = 70;
+    const logoH = 70;
     if (logoPath) {
       try {
-        doc.image(logoPath, logoX, logoY, {
-          width: logoWidth,
-          height: logoHeight,
-        });
-      } catch {}
+        const imgBuf = fs.readFileSync(logoPath);
+        doc.image(imgBuf, logoX, logoY, { fit: [logoW, logoH] });
+      } catch (e: any) {
+        // eslint-disable-next-line no-console
+        console.error('[PDF] Falha ao carregar a logo:', e?.message || e);
+      }
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn('[PDF] Prosseguindo sem logo (logoPath null).');
     }
 
     // Título alinhado ao centro da logo
     const title = `AC Acessórios - Pedido de Compra - ${pedido.pedido_cotacao}`;
     doc.font('Helvetica-Bold').fontSize(14).fillColor('#000');
     const titleLineH = doc.currentLineHeight();
-    const logoCenterY = logoY + logoHeight / 2;
+    const logoCenterY = logoY + logoH / 2;
     const titleY = logoCenterY - titleLineH / 2;
     doc.text(title, startX, titleY, { width: usableWidth, align: 'center' });
 
     // Abaixo do título (sem sobrepor a logo)
-    let y = Math.max(startY + logoHeight, titleY + titleLineH) + 8;
+    let y = Math.max(startY + logoH, titleY + titleLineH) + 8;
 
     // Bloco COMPRADOR à esquerda
     const gutter = 16;
@@ -192,11 +223,8 @@ export class PedidoService {
       yLeft += 4;
       doc.font('Helvetica-Bold').fontSize(10).fillColor('#000');
 
-      const nomeFornecedor =
-        (fornecedor.FOR_NOME ?? '').length > 28
-            ? fornecedor.FOR_NOME?.slice(0, 27) + '…'
-            : fornecedor.FOR_NOME ?? '';
-
+      // Limite de 40 caracteres no NOME do fornecedor (requisitado)
+      const nomeFornecedor = this.clampText(fornecedor.FOR_NOME, 40);
 
       doc.text(`FORNECEDOR: ${nomeFornecedor}`, leftX, yLeft, {
         width: leftColWidth,
