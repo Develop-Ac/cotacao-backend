@@ -43,7 +43,7 @@ export class PedidoService {
     // 2) Candidatos comuns em dev e produção (dist/)
     const candidates = [
       // dist
-      path.resolve(process.cwd(), 'dist', 'assets', 'icon-192.png'),
+      path.resolve(process.cwd(), 'dist', 'assets', 'assets', 'icon-192.png'),
       path.resolve(__dirname, '..', '..', '..', 'assets', 'icon-192.png'), // quando __dirname está em dist/src/pedido
       path.resolve(__dirname, '..', '..', 'assets', 'icon-192.png'),
 
