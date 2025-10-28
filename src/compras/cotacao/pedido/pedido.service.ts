@@ -346,10 +346,10 @@ export class PedidoService {
 
       // ordem: Ref, Descrição, Marca, Un, Qtd, Unit, Total
       const row = [
-        clamp(it.referencia ?? '', 18),
-        clamp(it.pro_descricao, 50),
-        clamp(it.mar_descricao ?? '', 15),
-        clamp(it.unidade ?? '', 6),
+        clamp(it.referencia ?? '', 10), // Ref
+        clamp(it.pro_descricao, 50),  // Descrição
+        clamp(it.mar_descricao ?? '', 10), // Marca
+        clamp(it.unidade ?? '', 6), // Un
         fmtQtd(qtd),
         unit ? fmtNum2(unit) : '',
         fmtNum2(linha),
