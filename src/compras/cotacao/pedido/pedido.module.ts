@@ -10,6 +10,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 
 // Módulo que criamos acima para expor o OpenQueryService
 import { OpenQueryModule } from '../../../shared/database/openquery/openquery.module';
+import { PedidoController } from './pedido.controller';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { OpenQueryModule } from '../../../shared/database/openquery/openquery.mo
     OpenQueryModule,    // <-- essencial: disponibiliza OpenQueryService para este módulo
     // PrismaModule,    // (opcional) se existir um PrismaModule que exporta PrismaService
   ],
+  controllers: [PedidoController],
   providers: [
     PedidoService,
     PedidoRepository,
