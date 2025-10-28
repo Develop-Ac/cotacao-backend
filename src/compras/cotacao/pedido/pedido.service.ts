@@ -224,7 +224,7 @@ export class PedidoService {
       doc.font('Helvetica-Bold').fontSize(10).fillColor('#000');
 
       // Limite de 40 caracteres no NOME do fornecedor (requisitado)
-      const nomeFornecedor = this.clampText(fornecedor.FOR_NOME, 40);
+      const nomeFornecedor = this.clampText(fornecedor.FOR_NOME, 28);
 
       doc.text(`FORNECEDOR: ${nomeFornecedor}`, leftX, yLeft, {
         width: leftColWidth,
