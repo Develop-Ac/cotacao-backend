@@ -17,6 +17,11 @@ type FornecedorRow = {
   EMAIL: string | null;
 };
 
+type PdfOpts = {
+  /** Se false, remove a coluna "Marca" e transfere a largura para "Descrição" */
+  marca?: boolean;
+};
+
 @Injectable()
 export class PedidoService {
   constructor(
@@ -131,11 +136,16 @@ export class PedidoService {
    * - Título central alinhado verticalmente ao centro da logo
    * - Bloco COMPRADOR à esquerda
    * - Sem metadados à direita (removidos)
-   * - **Tabela**: removido "Código" e **"Ref" virou a 1ª coluna (à esquerda)**
-   * - Descrição máx 25 chars, valores sem "R$", totais empilhados
+   * - **Tabela**: 'Ref' 1ª coluna; 'Código' removido; **'Marca' opcional via opts.marca**
+   * - Se 'Marca' for removida, 'Descrição' aumenta a largura (somando a largura de 'Marca')
+   * - Descrição com clamp dinâmico por largura; valores sem "R$"; totais empilhados
    * - **Novo**: Bloco FORNECEDOR (via OPENQUERY) logo abaixo do endereço do comprador
    */
-  async gerarPdfPedidoExpress(res: ExpressResponse, id: string) {
+  async gerarPdfPedidoExpress(
+    res: ExpressResponse,
+    id: string,
+    opts?: PdfOpts, // <<<<<<<<<<<<< adicionamos opts.marca
+  ) {
     const pedido = await this.repo.findByIdWithItens(id);
     if (!pedido) throw new NotFoundException('Pedido não encontrado');
 
@@ -223,7 +233,7 @@ export class PedidoService {
       yLeft += 4;
       doc.font('Helvetica-Bold').fontSize(10).fillColor('#000');
 
-      // Limite de 40 caracteres no NOME do fornecedor (requisitado)
+      // Limite de 28 caracteres no NOME do fornecedor
       const nomeFornecedor = this.clampText(fornecedor.FOR_NOME, 28);
 
       doc.text(`FORNECEDOR: ${nomeFornecedor}`, leftX, yLeft, {
@@ -259,43 +269,66 @@ export class PedidoService {
     y = yLeft + 12;
 
     // ====== Tabela ======
-    // Removemos 'Código' e colocamos 'Ref' como 1ª coluna
-    const col: Record<string, number> = {
-      ref: 70,           // 1ª coluna
-      descricao: 300,    // mais larga
+    const showMarca = opts?.marca !== false; // padrão: true
+
+    // 1) Larguras base tipadas como literais
+    const W = {
+      ref: 70,
+      descricao: 300,
       marca: 60,
       un: 20,
       qtd: 25,
       unit: 65,
       total: 65,
-    };
-    const headers = ['Ref', 'Descrição', 'Marca', 'Un', 'Qtd', 'Unit', 'Total'];
+    } as const;
 
-    // Ajuste automático para caber
-    const baseWidth = Object.values(col).reduce((a, b) => a + b, 0);
-    if (baseWidth > usableWidth) {
-      const scale = usableWidth / baseWidth;
-      for (const k of Object.keys(col)) col[k] = Math.floor(col[k] * scale);
+    // 🔧 Tipos para colunas (no mesmo escopo)
+    type ColumnKey = keyof typeof W;
+    type ColumnSpec = { key: ColumnKey; width: number; align?: 'left' | 'right' };
+
+    // 2) Se "Marca" não for exibida, transfere a largura para "Descrição"
+    const descricaoWidth = showMarca ? W.descricao : W.descricao + W.marca;
+
+    // 3) Monte as colunas sem spread condicional (evita widening para string)
+    const cols: ColumnSpec[] = [
+      { key: 'ref', width: W.ref, align: 'left' },
+      { key: 'descricao', width: descricaoWidth, align: 'left' },
+    ];
+
+    if (showMarca) {
+      cols.push({ key: 'marca', width: W.marca, align: 'left' });
     }
 
-    doc.font('Helvetica-Bold').fontSize(8).fillColor('#333');
-    let x = startX;
-    headers.forEach((h, i) => {
-      const w = Object.values(col)[i] as number;
-      doc.text(h, x, y, { width: w, align: i >= 4 ? 'right' : 'left' });
-      x += w;
-    });
-    y += 12;
-    doc
-      .moveTo(startX, y - 3)
-      .lineTo(startX + usableWidth, y - 3)
-      .strokeColor('#CCCCCC')
-      .lineWidth(1)
-      .stroke();
+    cols.push(
+      { key: 'un', width: W.un, align: 'left' },
+      { key: 'qtd', width: W.qtd, align: 'right' },
+      { key: 'unit', width: W.unit, align: 'right' },
+      { key: 'total', width: W.total, align: 'right' },
+    );
 
-    const clamp = (s: string | null | undefined, maxChars: number) => {
-      const v = (s ?? '').trim();
-      return v.length > maxChars ? v.slice(0, maxChars - 1) + '…' : v;
+    // 4) Map de headers tipado
+    const headerMap: Record<ColumnKey, string> = {
+      ref: 'Ref',
+      descricao: 'Descrição',
+      marca: 'Marca',
+      un: 'Un',
+      qtd: 'Qtd',
+      unit: 'Unit',
+      total: 'Total',
+    };
+
+    // 5) Ajuste proporcional para caber em usableWidth
+    const baseWidth = cols.reduce((acc, c) => acc + c.width, 0);
+    if (baseWidth > usableWidth) {
+      const scale = usableWidth / baseWidth;
+      for (const c of cols) c.width = Math.floor(c.width * scale);
+    }
+
+    // Helpers de formatação
+    const approxClampByWidth = (txt: string, widthPx: number) => {
+      // Aproxima caracteres por ~6px cada (fonte 8)
+      const maxChars = Math.max(3, Math.floor(widthPx / 6));
+      return this.clampText(txt, maxChars);
     };
     const fmtNum2 = (n: number) =>
       new Intl.NumberFormat('pt-BR', {
@@ -308,6 +341,40 @@ export class PedidoService {
         maximumFractionDigits: 3,
       }).format(n);
 
+    // Header
+    doc.font('Helvetica-Bold').fontSize(8).fillColor('#333');
+    let x = startX;
+    for (const c of cols) {
+      doc.text(headerMap[c.key], x, y, { width: c.width, align: c.align ?? 'left' });
+      x += c.width;
+    }
+    y += 12;
+    doc
+      .moveTo(startX, y - 3)
+      .lineTo(startX + usableWidth, y - 3)
+      .strokeColor('#CCCCCC')
+      .lineWidth(1)
+      .stroke();
+
+    // Função para redesenhar o header após quebra
+    const drawHeader = () => {
+      doc.font('Helvetica-Bold').fontSize(8).fillColor('#333');
+      let xx = startX;
+      for (const c of cols) {
+        doc.text(headerMap[c.key], xx, y, { width: c.width, align: c.align ?? 'left' });
+        xx += c.width;
+      }
+      y += 12;
+      doc
+        .moveTo(startX, y - 3)
+        .lineTo(startX + usableWidth, y - 3)
+        .strokeColor('#CCCCCC')
+        .lineWidth(1)
+        .stroke();
+      doc.font('Helvetica').fontSize(8).fillColor('#000');
+    };
+
+    // Linhas
     doc.font('Helvetica').fontSize(8).fillColor('#000');
     let totalQtd = 0;
     let totalGeral = 0;
@@ -317,24 +384,7 @@ export class PedidoService {
       if (y > doc.page.height - doc.page.margins.bottom - 40) {
         doc.addPage();
         y = doc.page.margins.top;
-
-        // header da tabela
-        doc.font('Helvetica-Bold').fontSize(8).fillColor('#333');
-        x = startX;
-        headers.forEach((h, i) => {
-          const w = Object.values(col)[i] as number;
-          doc.text(h, x, y, { width: w, align: i >= 4 ? 'right' : 'left' });
-          x += w;
-        });
-        y += 12;
-        doc
-          .moveTo(startX, y - 3)
-          .lineTo(startX + usableWidth, y - 3)
-          .strokeColor('#CCCCCC')
-          .lineWidth(1)
-          .stroke();
-
-        doc.font('Helvetica').fontSize(8).fillColor('#000');
+        drawHeader();
       }
 
       const qtd = Number(it.quantidade ?? 0);
@@ -344,23 +394,28 @@ export class PedidoService {
       totalQtd += qtd;
       totalGeral += linha;
 
-      // ordem: Ref, Descrição, Marca, Un, Qtd, Unit, Total
-      const row = [
-        clamp(it.referencia ?? '', 10), // Ref
-        clamp(it.pro_descricao, 50),  // Descrição
-        clamp(it.mar_descricao ?? '', 10), // Marca
-        clamp(it.unidade ?? '', 6), // Un
-        fmtQtd(qtd),
-        unit ? fmtNum2(unit) : '',
-        fmtNum2(linha),
-      ];
+      // Valores crus
+      const values: Record<ColumnKey, string> = {
+        ref: (it.referencia ?? '').toString(),
+        descricao: (it.pro_descricao ?? '').toString(),
+        marca: (it.mar_descricao ?? '').toString(),
+        un: (it.unidade ?? '').toString(),
+        qtd: fmtQtd(qtd),
+        unit: unit ? fmtNum2(unit) : '',
+        total: fmtNum2(linha),
+      };
 
+      // Render conforme colunas ativas
       x = startX;
-      row.forEach((txt, i) => {
-        const w = Object.values(col)[i] as number;
-        doc.text(txt, x, y, { width: w, align: i >= 4 ? 'right' : 'left' });
-        x += w;
-      });
+      for (const c of cols) {
+        const raw = (values[c.key] ?? '').trim();
+        const txt =
+          c.key === 'qtd' || c.key === 'unit' || c.key === 'total'
+            ? raw
+            : approxClampByWidth(raw, c.width);
+        doc.text(txt, x, y, { width: c.width, align: c.align ?? 'left' });
+        x += c.width;
+      }
 
       y += 11;
     }
