@@ -3,11 +3,12 @@ import { Injectable, HttpException, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import * as sql from 'mssql';
 
 // ✅ novo: serviço compartilhado que gerencia o pool/conexão MSSQL (OpenQuery)
 import { OpenQueryService } from '../../../shared/database/openquery/openquery.service';
+import { CotacaoSyncRepository } from './cotacao-sync.repository';
 
 type NextFornecedor = {
   pedido_cotacao: number;
@@ -32,10 +33,9 @@ export class CotacaoSyncService {
   private readonly logger = new Logger(CotacaoSyncService.name);
 
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly repo: CotacaoSyncRepository,
     private readonly http: HttpService,
     private readonly config: ConfigService,
-    // ✅ injeta o serviço de OpenQuery (centraliza pool/config/healthcheck)
     private readonly openQuery: OpenQueryService,
   ) {}
 
@@ -179,48 +179,27 @@ export class CotacaoSyncService {
 
     // 2) Persistir local (espelho)
     if (fornecedores.length > 0) {
-      await this.prisma.$transaction(async (tx) => {
-        for (const forn of fornecedores) {
-          await tx.com_cotacao_for.upsert({
-            where: { pedido_for: { pedido_cotacao: forn.pedido_cotacao, for_codigo: forn.for_codigo } },
-            update: { for_nome: forn.for_nome, cpf_cnpj: forn.cpf_cnpj },
-            create: {
-              pedido_cotacao: forn.pedido_cotacao,
-              for_codigo: forn.for_codigo,
-              for_nome: forn.for_nome,
-              cpf_cnpj: forn.cpf_cnpj,
-            },
-          });
-
-          await tx.com_cotacao_itens_for.deleteMany({
-            where: { pedido_cotacao: forn.pedido_cotacao, for_codigo: forn.for_codigo },
-          });
-
-          if (forn.itens?.length) {
-            const inputs: Prisma.com_cotacao_itens_forCreateManyInput[] = forn.itens.map((i) => ({
-              pedido_cotacao: forn.pedido_cotacao,
-              for_codigo: forn.for_codigo,
-              emissao: i.emissao ? new Date(i.emissao) : null,
-              pro_codigo: this.parseIntStrict('PRO_CODIGO', i.pro_codigo),
-              pro_descricao: i.pro_descricao,
-              mar_descricao: i.mar_descricao ?? null,
-              referencia: i.referencia ?? null,
-              unidade: i.unidade ?? null,
-              quantidade: this.parseIntStrict('QUANTIDADE', i.quantidade),
-              valor_unitario: this.parseMoney('VALOR_UNITARIO', i.valor_unitario) ?? null,
-            }));
-            if (inputs.length) await tx.com_cotacao_itens_for.createMany({ data: inputs });
-          }
-        }
-      });
+      const mapped = fornecedores.map((forn) => ({
+        pedido_cotacao: forn.pedido_cotacao,
+        for_codigo: forn.for_codigo,
+        for_nome: forn.for_nome,
+        cpf_cnpj: forn.cpf_cnpj,
+        itens: (forn.itens || []).map((i) => ({
+          emissao: i.emissao ? new Date(i.emissao) : null,
+          pro_codigo: this.parseIntStrict('PRO_CODIGO', i.pro_codigo),
+          pro_descricao: i.pro_descricao,
+          mar_descricao: i.mar_descricao ?? null,
+          referencia: i.referencia ?? null,
+          unidade: i.unidade ?? null,
+          quantidade: this.parseIntStrict('QUANTIDADE', i.quantidade),
+          valor_unitario: this.parseMoney('VALOR_UNITARIO', i.valor_unitario) ?? null,
+        })),
+      }));
+      await this.repo.upsertFornecedorComItensTx(mapped);
     }
 
     // 3) Ler local e enriquecer via ERP — coleta todos os códigos e consulta em UM SELECT
-    const fornecedoresLocal = await this.prisma.com_cotacao_for.findMany({
-      where: { pedido_cotacao },
-      include: { itens: true },
-      orderBy: [{ for_codigo: 'asc' }],
-    });
+    const fornecedoresLocal = await this.repo.listFornecedoresLocal(pedido_cotacao);
 
     const allCodes: number[] = [];
     fornecedoresLocal.forEach((f) =>

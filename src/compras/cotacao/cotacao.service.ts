@@ -1,6 +1,6 @@
 // src/compras/cotacao.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { CotacaoRepository } from './cotacao.repository';
 import { CreateCotacaoDto } from './cotacao.dto';
 
 type ListAllParams = {
@@ -12,7 +12,7 @@ type ListAllParams = {
 
 @Injectable()
 export class CotacaoService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly repo: CotacaoRepository) {}
 
   async upsertCotacao(dto: CreateCotacaoDto) {
     const { empresa, pedido_cotacao, itens } = dto;
@@ -28,37 +28,19 @@ export class CotacaoService {
       quantidade: Number(i.QUANTIDADE),
     }));
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.com_cotacao.upsert({
-        where: { pedido_cotacao },
-        create: { empresa, pedido_cotacao },
-        update: { empresa },
-      });
-
-      await tx.com_cotacao_itens.deleteMany({ where: { pedido_cotacao } });
-
-      if (itensLower.length > 0) {
-        await tx.com_cotacao_itens.createMany({ data: itensLower });
-      }
-    });
+    await this.repo.upsertCotacaoWithItems(empresa, pedido_cotacao, itensLower);
 
     return { ok: true, empresa, pedido_cotacao, total_itens: itensLower.length };
   }
 
   async getCotacao(empresa: number, pedido: number) {
-    const header = await this.prisma.com_cotacao.findUnique({
-      where: { pedido_cotacao: pedido },
-      select: { empresa: true, pedido_cotacao: true },
-    });
+    const header = await this.repo.getCotacaoHeader(pedido);
 
     if (!header || header.empresa !== empresa) {
       throw new NotFoundException('Pedido de cotação não encontrado.');
     }
 
-    const itens = await this.prisma.com_cotacao_itens.findMany({
-      where: { pedido_cotacao: pedido },
-      orderBy: { pro_codigo: 'asc' },
-    });
+    const itens = await this.repo.listItensByPedido(pedido);
 
     const itensUpper = itens.map((r) => ({
       PEDIDO_COTACAO: r.pedido_cotacao,
@@ -83,26 +65,14 @@ export class CotacaoService {
   async listAll({ empresa, page, pageSize, includeItems }: ListAllParams) {
     const where = empresa != null ? { empresa } : {};
 
-    const total = await this.prisma.com_cotacao.count({ where });
+  const total = await this.repo.countCotacao(where);
 
-    const headers = await this.prisma.com_cotacao.findMany({
-      where,
-      orderBy: { pedido_cotacao: 'desc' },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      select: { id: true, empresa: true, pedido_cotacao: true },
-    });
+    const headers = await this.repo.listHeaders(where, page, pageSize);
 
     const pedidos = headers.map((h) => h.pedido_cotacao);
 
     // count por pedido via groupBy
-    const counts = pedidos.length
-      ? await this.prisma.com_cotacao_itens.groupBy({
-          by: ['pedido_cotacao'],
-          where: { pedido_cotacao: { in: pedidos } },
-          _count: { _all: true },
-        })
-      : [];
+    const counts = pedidos.length ? await this.repo.groupItemCounts(pedidos) : [];
 
     const countMap = new Map<number, number>(
       counts.map((c) => [c.pedido_cotacao, c._count._all]),
@@ -124,10 +94,7 @@ export class CotacaoService {
     >();
 
     if (includeItems && pedidos.length) {
-      const itens = await this.prisma.com_cotacao_itens.findMany({
-        where: { pedido_cotacao: { in: pedidos } },
-        orderBy: [{ pedido_cotacao: 'desc' }, { pro_codigo: 'asc' }],
-      });
+      const itens = await this.repo.listItensForPedidos(pedidos);
 
       itensMap = itens.reduce((map, r) => {
         const arr = map.get(r.pedido_cotacao) ?? [];

@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 
 import { FornecedorController } from './fornecedor.controller';
 import { FornecedorService } from './fornecedor.service';
+import { FornecedorRepository } from './fornecedor.repository';
 
 @Module({
   imports: [
@@ -14,11 +15,12 @@ import { FornecedorService } from './fornecedor.service';
   controllers: [FornecedorController],
   providers: [
     FornecedorService,
+    FornecedorRepository,
     {
       provide: PrismaClient,
       useFactory: () => new PrismaClient(),
     },
   ],
-  exports: [FornecedorService],
+  exports: [FornecedorService, FornecedorRepository],
 })
 export class FornecedorModule {}

@@ -10,7 +10,7 @@ export class LoginService {
    * Valida credenciais e retorna o usuário (sem a senha) em caso de sucesso.
    */
   async login(email: string, senha: string) {
-    const usuario = await this.prisma.com_usuario.findUnique({
+    const usuario = await this.prisma.sis_usuarios.findUnique({
       where: { email },
     });
 

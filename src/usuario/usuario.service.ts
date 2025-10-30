@@ -13,7 +13,7 @@ export class UsuarioService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll() {
-    return this.prisma.com_usuario.findMany({
+    return this.prisma.sis_usuarios.findMany({
       select: { id: true, nome: true, email: true },
       orderBy: { id: 'asc' },
     });
@@ -24,7 +24,7 @@ export class UsuarioService {
     const senhaHash = await bcrypt.hash(data.senha, 10);
 
     try {
-      const usuario = await this.prisma.com_usuario.create({
+      const usuario = await this.prisma.sis_usuarios.create({
         data: {
           nome: data.nome,
           email: data.email,
@@ -54,7 +54,7 @@ export class UsuarioService {
 
   async remove(id: string) {
     try {
-      await this.prisma.com_usuario.delete({
+      await this.prisma.sis_usuarios.delete({
         where: { id: id },
       });
       return { message: 'Usuário removido com sucesso!' };

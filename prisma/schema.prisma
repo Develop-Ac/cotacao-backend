@@ -8,12 +8,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model com_usuario {
-  id                String  @id @default(cuid())
-  nome              String
-  email             String  @unique
-  senha             String
-  trash             Int
+model sis_usuarios {
+  id         String    @id @default(cuid())
+  nome       String
+  email      String @unique
+  senha      String
+  trash      Int    @default(0)
 }
 
 model com_cotacao {
@@ -35,14 +35,6 @@ model com_cotacao_itens {
   com_cotacao    com_cotacao @relation(fields: [pedido_cotacao], references: [pedido_cotacao], onDelete: Cascade)
 
   @@id([pedido_cotacao, pro_codigo])
-}
-
-model com_usuarios {
-  usuario_id Int    @id @default(autoincrement())
-  nome       String
-  email      String @unique
-  senha      String
-  trash      Int    @default(0)
 }
 
 model ofi_checklists {

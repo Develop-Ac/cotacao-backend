@@ -3,15 +3,15 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
-import { Prisma, PrismaClient } from '@prisma/client';
 import { CreateFornecedorDto } from './fornecedor.dto';
+import { FornecedorRepository } from './fornecedor.repository';
 
 @Injectable()
 export class FornecedorService {
   private readonly logger = new Logger(FornecedorService.name);
 
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly repository: FornecedorRepository,
     private readonly http: HttpService,
     private readonly config: ConfigService,
   ) {}
@@ -64,114 +64,92 @@ export class FornecedorService {
 
     const idemKey = `cotacao:${dto.pedido_cotacao}:${dto.for_codigo}`;
 
-    return this.prisma.$transaction(async (tx) => {
-      // 1) UPSERT cabeçalho local (com_cotacao_for)
-      await tx.com_cotacao_for.upsert({
-        where: {
-          pedido_for: {
-            pedido_cotacao: dto.pedido_cotacao,
-            for_codigo: dto.for_codigo,
-          },
-        },
-        update: {
-          for_nome: dto.for_nome,
-          cpf_cnpj: dto.cpf_cnpj ?? null,
-        },
-        create: {
+    // 1) UPSERT cabeçalho local (com_cotacao_for)
+    await this.repository.upsertFornecedor({
+      where: {
+        pedido_for: {
           pedido_cotacao: dto.pedido_cotacao,
           for_codigo: dto.for_codigo,
-          for_nome: dto.for_nome,
-          cpf_cnpj: dto.cpf_cnpj ?? null,
         },
-      });
-
-      // 2) Busca ITENS-BASE da cotação apenas pelo pedido_cotacao
-      const itensBase = await tx.com_cotacao_itens.findMany({
-        where: { pedido_cotacao: dto.pedido_cotacao },
-        select: {
-          emissao: true,          // remova se não existir nessa tabela
-          pro_codigo: true,
-          pro_descricao: true,
-          mar_descricao: true,
-          referencia: true,
-          unidade: true,
-          quantidade: true,
-        },
-      });
-
-      // 3) Monta payload no formato esperado pelo Next
-      const itensParaNext = itensBase.map((row) => ({
-        PEDIDO_COTACAO: dto.pedido_cotacao,
-        EMISSAO: row.emissao ? new Date(row.emissao as any).toISOString() : null,
-        PRO_CODIGO: (row.pro_codigo as unknown) as number | string, // se no banco for TEXT, string é segura
-        PRO_DESCRICAO: row.pro_descricao as string,
-        MAR_DESCRICAO: (row.mar_descricao as string | null) ?? null,
-        REFERENCIA: (row.referencia as string | null) ?? null,
-        UNIDADE: (row.unidade as string | null) ?? null,
-        QUANTIDADE: Number(row.quantidade),
-      }));
-
-      // ⚠️ NÃO envie cpf_cnpj: null — use undefined para omitir no JSON
-      const payloadParaNext: any = {
+      },
+      update: {
+        for_nome: dto.for_nome,
+        cpf_cnpj: dto.cpf_cnpj ?? null,
+      },
+      create: {
         pedido_cotacao: dto.pedido_cotacao,
         for_codigo: dto.for_codigo,
         for_nome: dto.for_nome,
-        cpf_cnpj: dto.cpf_cnpj ?? undefined, // <— omitido se undefined
-        itens: itensParaNext,
-      };
+        cpf_cnpj: dto.cpf_cnpj ?? null,
+      },
+    });
 
-      // Logs úteis para depuração (sem vazar cpf_cnpj se ausente)
-      this.logger.debug(
-        `[FornecedorService] Enviando para Next ${url} — itens: ${itensParaNext.length}`,
+    // 2) Busca ITENS-BASE da cotação apenas pelo pedido_cotacao
+    const itensBase = await this.repository.findCotacaoItens(dto.pedido_cotacao);
+
+    // 3) Monta payload no formato esperado pelo Next
+    const itensParaNext = itensBase.map((row) => ({
+      PEDIDO_COTACAO: dto.pedido_cotacao,
+      EMISSAO: row.emissao ? new Date(row.emissao as any).toISOString() : null,
+      PRO_CODIGO: (row.pro_codigo as unknown) as number | string, // se no banco for TEXT, string é segura
+      PRO_DESCRICAO: row.pro_descricao as string,
+      MAR_DESCRICAO: (row.mar_descricao as string | null) ?? null,
+      REFERENCIA: (row.referencia as string | null) ?? null,
+      UNIDADE: (row.unidade as string | null) ?? null,
+      QUANTIDADE: Number(row.quantidade),
+    }));
+
+    // ⚠️ NÃO envie cpf_cnpj: null — use undefined para omitir no JSON
+    const payloadParaNext: any = {
+      pedido_cotacao: dto.pedido_cotacao,
+      for_codigo: dto.for_codigo,
+      for_nome: dto.for_nome,
+      cpf_cnpj: dto.cpf_cnpj ?? undefined, // <— omitido se undefined
+      itens: itensParaNext,
+    };
+
+    // Logs úteis para depuração (sem vazar cpf_cnpj se ausente)
+    this.logger.debug(
+      `[FornecedorService] Enviando para Next ${url} — itens: ${itensParaNext.length}`,
+    );
+
+    try {
+      const { data, status } = await firstValueFrom(
+        this.http.post(url, payloadParaNext, {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'Idempotency-Key': idemKey,
+          },
+          validateStatus: (s) => s < 500, // tratamos 4xx aqui
+        }),
       );
 
-      try {
-        const { data, status } = await firstValueFrom(
-          this.http.post(url, payloadParaNext, {
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': apiKey,
-              'Idempotency-Key': idemKey,
-            },
-            validateStatus: (s) => s < 500, // tratamos 4xx aqui
-          }),
-        );
+      this.logger.debug(
+        `[FornecedorService] Next respondeu status=${status} body=${JSON.stringify(data)}`,
+      );
 
-        this.logger.debug(
-          `[FornecedorService] Next respondeu status=${status} body=${JSON.stringify(data)}`,
-        );
-
-        if (status >= 400) {
-          throw new HttpException(data?.error || 'Falha ao processar no Next', status);
-        }
-
-        return { ok: true, next: data, itens_enviados: itensParaNext.length };
-      } catch (err) {
-        const e = err as AxiosError<any>;
-        const status = e.response?.status ?? 500;
-        const details = e.response?.data ?? e.message ?? 'Erro ao chamar Next';
-        this.logger.error(
-          `POST ${url} falhou: ${typeof details === 'string' ? details : JSON.stringify(details)}`,
-        );
-        throw new HttpException(
-          { error: 'Next falhou; transação local revertida', details },
-          status,
-        );
+      if (status >= 400) {
+        throw new HttpException(data?.error || 'Falha ao processar no Next', status);
       }
-    });
+
+      return { ok: true, next: data, itens_enviados: itensParaNext.length };
+    } catch (err) {
+      const e = err as AxiosError<any>;
+      const status = e.response?.status ?? 500;
+      const details = e.response?.data ?? e.message ?? 'Erro ao chamar Next';
+      this.logger.error(
+        `POST ${url} falhou: ${typeof details === 'string' ? details : JSON.stringify(details)}`,
+      );
+      throw new HttpException(
+        { error: 'Next falhou; transação local revertida', details },
+        status,
+      );
+    }
   }
 
   async listarFornecedoresPorPedido(pedido_cotacao: number) {
-    const rows = await this.prisma.com_cotacao_for.findMany({
-      where: { pedido_cotacao },
-      select: {
-        for_codigo: true,
-        for_nome: true,
-        cpf_cnpj: true,
-      },
-      orderBy: { updated_at: 'desc' },
-    });
-
+    const rows = await this.repository.listarFornecedoresPorPedido(pedido_cotacao);
     return rows.map((r) => ({
       for_codigo: r.for_codigo ?? null,
       for_nome: r.for_nome ?? null,

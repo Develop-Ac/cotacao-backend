@@ -4,8 +4,9 @@ import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 import { CotacaoSyncController } from './cotacao-sync.controller';
 import { CotacaoSyncService } from './cotacao-sync.service';
-import { PrismaClient } from '@prisma/client';
+import { PrismaService } from '../../../prisma/prisma.service';
 import { OpenQueryModule } from 'src/shared/database/openquery/openquery.module';
+import { CotacaoSyncRepository } from './cotacao-sync.repository';
 // import { DatabaseModule } from '../../cotacao/openquery/database/database.module';
 
 @Module({
@@ -21,7 +22,8 @@ import { OpenQueryModule } from 'src/shared/database/openquery/openquery.module'
   controllers: [CotacaoSyncController],
   providers: [
     CotacaoSyncService,
-    { provide: PrismaClient, useValue: new PrismaClient() },
+    PrismaService,
+    CotacaoSyncRepository,
   ],
 })
 export class CotacaoSyncModule {}
