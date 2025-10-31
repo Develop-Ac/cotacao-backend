@@ -98,26 +98,17 @@ export class ChecklistsService {
       | 'dataHoraEntrada';
     const orderDir = (query.orderDir ?? 'desc') as 'asc' | 'desc';
 
-    // CORREÇÃO: Usar a string literal 'insensitive' para o modo de consulta
-    const insensitive = 'insensitive' as const;
-
-    // TIPAR explicitamente o where evita inferência ruim do TS
+// TIPAR explicitamente o where evita inferência ruim do TS
 
 const where: Prisma.ofi_checklistsWhereInput | undefined = search
   ? {
       OR: [
-        { osInterna:  { contains: search }, },
-        { clienteNome:{ contains: search }, },
-        { veiculoPlaca:{ contains: search, } },
+        { osInterna: { contains: search } },
+        { clienteNome: { contains: search } },
+        { veiculoPlaca: { contains: search } },
       ],
     }
   : undefined;
-
-const rows = await this.prisma.ofi_checklists.findMany({
-  where,
-  orderBy: { createdAt: 'desc' },
-  take: 50,
-});
 
     const [total, data] = await this.prisma.$transaction([
       this.prisma.ofi_checklists.count({ where }),
