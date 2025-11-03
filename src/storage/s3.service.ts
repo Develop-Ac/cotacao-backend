@@ -1,66 +1,85 @@
-// src/storage/s3.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   S3Client,
   PutObjectCommand,
-  HeadObjectCommand,
+  HeadBucketCommand,
+  CreateBucketCommand,
 } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
+import * as https from 'https';
 
 @Injectable()
 export class S3Service {
+  private readonly logger = new Logger(S3Service.name);
   private readonly client: S3Client;
-  private readonly bucket: string;
-  private readonly region: string;
-  private readonly getUrlTtl: number;
+  private readonly region = process.env.S3_REGION || 'us-east-1';
+  private readonly endpoint = process.env.S3_ENDPOINT; // ex.: https://minio.seu.dom:9000
+  private readonly forcePathStyle =
+    String(process.env.S3_FORCE_PATH_STYLE ?? 'true').toLowerCase() === 'true';
 
   constructor() {
-    const endpoint = process.env.S3_ENDPOINT!;
-    this.region = process.env.S3_REGION || 'us-east-1';
-    const accessKeyId = process.env.S3_ACCESS_KEY!;
-    const secretAccessKey = process.env.S3_SECRET_KEY!;
-    this.bucket = process.env.S3_BUCKET_AVARIAS!;
-    this.getUrlTtl = Number(process.env.S3_GET_URL_TTL || 86400);
+    if (!process.env.S3_ACCESS_KEY || !process.env.S3_SECRET_KEY) {
+      throw new Error('S3_ACCESS_KEY/S3_SECRET_KEY ausentes.');
+    }
+
+    const insecure =
+      String(process.env.S3_INSECURE_TLS ?? 'false').toLowerCase() === 'true';
+
+    // Apenas se realmente precisar ignorar validação do cert:
+    const requestHandler = insecure
+      ? new NodeHttpHandler({
+          httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+        })
+      : undefined;
 
     this.client = new S3Client({
       region: this.region,
-      endpoint,
-      forcePathStyle: true, // MinIO recomenda path-style
-      credentials: { accessKeyId, secretAccessKey },
+      endpoint: this.endpoint,
+      forcePathStyle: this.forcePathStyle,
+      credentials: {
+        accessKeyId: process.env.S3_ACCESS_KEY!,
+        secretAccessKey: process.env.S3_SECRET_KEY!,
+      },
+      requestHandler, // <- usa agente inseguro só se habilitado
     });
+
+    if (insecure) {
+      this.logger.warn(
+        'S3_INSECURE_TLS=true: validação de certificado TLS DESATIVADA (use apenas em DEV/HOMOLOG).',
+      );
+    }
   }
 
-  async putObject(key: string, body: Buffer, contentType: string) {
-    const cmd = new PutObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-      Body: body,
-      ContentType: contentType,
-    });
-    await this.client.send(cmd);
-    return { bucket: this.bucket, key };
+  async ensureBucket(bucket: string): Promise<void> {
+    try {
+      await this.client.send(new HeadBucketCommand({ Bucket: bucket }));
+    } catch {
+      this.logger.warn(`Bucket "${bucket}" não existe. Criando...`);
+      await this.client.send(new CreateBucketCommand({ Bucket: bucket }));
+      this.logger.log(`Bucket "${bucket}" criado.`);
+    }
   }
 
-  async headObject(key: string) {
-    const cmd = new HeadObjectCommand({ Bucket: this.bucket, Key: key });
-    return this.client.send(cmd);
-  }
+  async putObject(params: {
+    bucket: string;
+    key: string;
+    body: Buffer | Uint8Array | Blob | string;
+    contentType?: string;
+  }): Promise<void> {
+    const { bucket, key, body, contentType } = params;
+    if (!bucket) throw new Error('Bucket não informado.');
+    if (!key) throw new Error('Key não informada.');
 
-  async getPresignedGetUrl(key: string, expiresSeconds?: number) {
-    const cmd = new HeadObjectCommand({ Bucket: this.bucket, Key: key });
-    // Apenas para verificar se existe; se não quiser, pode pular
-    await this.client.send(cmd);
+    await this.ensureBucket(bucket);
 
-    const signedUrl = await getSignedUrl(
-      this.client as any,
-      // usamos um GET "virtual" via presigner; HeadObject também serve, mas queremos download:
-      // truque: reutilizamos PutObject/Head? Melhor: gerar URL manualmente com GetObjectCommand:
-      new (require('@aws-sdk/client-s3').GetObjectCommand)({
-        Bucket: this.bucket,
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
         Key: key,
+        Body: body,
+        ContentType: contentType || 'application/octet-stream',
+        ACL: 'private',
       }),
-      { expiresIn: expiresSeconds ?? this.getUrlTtl },
     );
-    return signedUrl;
   }
 }
