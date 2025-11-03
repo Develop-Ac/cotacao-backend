@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Controller,
   Get,
+  NotFoundException,
   Post,
   Query,
   UploadedFile,
@@ -15,7 +16,6 @@ import { randomBytes } from 'crypto';
 import { S3Service } from '../../storage/s3.service';
 
 function smallId(len = 12) {
-  // gera um id base36 curto (estilo cuid)
   const buf = randomBytes(len);
   return Array.from(buf, (b) => (b % 36).toString(36)).join('');
 }
@@ -29,7 +29,6 @@ const ALLOWED = new Set([
   'image/heif',
 ]);
 
-// Bucket vem do .env (ou "avarias" por padrão)
 const BUCKET = process.env.S3_BUCKET_AVARIAS || 'avarias';
 
 @Controller('uploads')
@@ -57,28 +56,19 @@ export class UploadsController {
       throw new BadRequestException('Arquivo obrigatório (campo "file")');
     }
 
-    // 1) Normaliza para PNG e limita dimensão (heic/heif/jpg/png/webp)
     let pngBuffer: Buffer;
     try {
       pngBuffer = await sharp(file.buffer)
-        .rotate() // auto-orient por EXIF
-        .resize({
-          width: 1280,
-          height: 1280,
-          fit: 'inside',
-          withoutEnlargement: true,
-        })
+        .rotate()
+        .resize({ width: 1280, height: 1280, fit: 'inside', withoutEnlargement: true })
         .png({ quality: 85, compressionLevel: 9, adaptiveFiltering: true })
         .toBuffer();
-    } catch (e) {
-      // fallback: em caso de build do sharp sem libvips HEIC, mantém original
-      pngBuffer = file.buffer;
+    } catch {
+      pngBuffer = file.buffer; // fallback
     }
 
-    // 2) Nome curto .png
     const keyName = `${smallId(12)}.png`;
 
-    // 3) Upload para o MinIO/S3 (agora passando Bucket explicitamente)
     await this.s3.putObject({
       bucket: BUCKET,
       key: keyName,
@@ -86,31 +76,39 @@ export class UploadsController {
       contentType: 'image/png',
     });
 
-    // 4) (Opcional) URL pré-assinada — só se o serviço expuser esse método
     let url: string | undefined;
-    if (typeof (this.s3 as any).getPresignedGetUrl === 'function') {
+    if ((this.s3 as any).getPresignedGetUrl) {
       try {
         url = await (this.s3 as any).getPresignedGetUrl({
           bucket: BUCKET,
           key: keyName,
-          expiresIn: 3600, // 1h
+          expiresIn: 3600,
         });
-      } catch {
-        // ignore erros de presign
-      }
+      } catch {}
     }
 
-    // 5) Retorno: o front grava apenas fileName no banco
-    return { ok: true, fileName: keyName, url };
+    // >>> DEVOLVE A KEY <<<
+    return { ok: true, fileName: keyName, key: keyName, url };
   }
 
-  // Endpoint opcional para gerar URL de download depois
   @Get('avarias/url')
   async presign(@Query('key') key: string) {
     if (!key) throw new BadRequestException('Informe key');
-    if (typeof (this.s3 as any).getPresignedGetUrl !== 'function') {
+    if (!(this.s3 as any).existsObject || !(this.s3 as any).getPresignedGetUrl) {
       throw new BadRequestException('Presign indisponível no S3Service.');
     }
+
+    const exists = await (this.s3 as any).existsObject(BUCKET, key);
+    if (!exists && !key.includes('.')) {
+      const tryPng = `${key}.png`;
+      if (await (this.s3 as any).existsObject(BUCKET, tryPng)) {
+        key = tryPng;
+      }
+    }
+
+    const stillExists = await (this.s3 as any).existsObject(BUCKET, key);
+    if (!stillExists) throw new NotFoundException('Arquivo não encontrado.');
+
     const url = await (this.s3 as any).getPresignedGetUrl({
       bucket: BUCKET,
       key,
