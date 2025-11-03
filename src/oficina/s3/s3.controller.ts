@@ -67,14 +67,14 @@ export class UploadsController {
       pngBuffer = file.buffer; // fallback
     }
 
-    const keyName = `${smallId(12)}.png`;
+    const keyName = `${smallId(12)}.png`; 
 
-    await this.s3.putObject({
-      bucket: BUCKET,
-      key: keyName,
-      body: pngBuffer,
-      contentType: 'image/png',
-    });
+    await this.s3.putObject(
+      keyName,
+      pngBuffer,
+      'image/png',
+      BUCKET,
+    );
 
     let url: string | undefined;
     if ((this.s3 as any).getPresignedGetUrl) {
@@ -92,28 +92,26 @@ export class UploadsController {
   }
 
   @Get('avarias/url')
-  async presign(@Query('key') key: string) {
+  async presign(@Query('key') key: string, @Query('expires') expires?: string) {
     if (!key) throw new BadRequestException('Informe key');
-    if (!(this.s3 as any).existsObject || !(this.s3 as any).getPresignedGetUrl) {
-      throw new BadRequestException('Presign indisponível no S3Service.');
-    }
 
-    const exists = await (this.s3 as any).existsObject(BUCKET, key);
-    if (!exists && !key.includes('.')) {
-      const tryPng = `${key}.png`;
-      if (await (this.s3 as any).existsObject(BUCKET, tryPng)) {
-        key = tryPng;
+    const ttl = Math.max(60, Math.min(Number(expires) || 3600, 24 * 3600)); // entre 1min e 24h
+
+    try {
+      const url = await this.s3.getPresignedGetUrl(key, ttl, this.s3.getDefaultBucket());
+      return { ok: true, url };
+    } catch (e: any) {
+      const msg = String(e?.name || '').toLowerCase();
+      const text = String(e?.message || '');
+
+      if (msg.includes('notfound') || /NoSuchKey/i.test(text)) {
+        throw new BadRequestException('Arquivo não encontrado no bucket.');
       }
+      // Erros TLS/CERT
+      if (/self-signed certificate|certificate/i.test(text)) {
+        throw new BadRequestException('Falha de certificado TLS ao falar com o S3. Verifique o certificado do endpoint ou habilite S3_TLS_INSECURE=true temporariamente.');
+      }
+      throw new BadRequestException(`Falha ao gerar URL pré-assinada: ${text}`);
     }
-
-    const stillExists = await (this.s3 as any).existsObject(BUCKET, key);
-    if (!stillExists) throw new NotFoundException('Arquivo não encontrado.');
-
-    const url = await (this.s3 as any).getPresignedGetUrl({
-      bucket: BUCKET,
-      key,
-      expiresIn: 3600,
-    });
-    return { ok: true, url };
   }
 }
