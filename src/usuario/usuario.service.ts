@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { UsuarioRepository } from './usuario.repository';
 import * as bcrypt from 'bcryptjs';
 
 export interface CreateUsuarioInput {
@@ -10,13 +10,10 @@ export interface CreateUsuarioInput {
 
 @Injectable()
 export class UsuarioService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: UsuarioRepository) {}
 
   async findAll() {
-    return this.prisma.sis_usuarios.findMany({
-      select: { id: true, nome: true, email: true },
-      orderBy: { id: 'asc' },
-    });
+    return this.repo.findAll();
   }
 
   async create(data: CreateUsuarioInput) {
@@ -24,19 +21,11 @@ export class UsuarioService {
     const senhaHash = await bcrypt.hash(data.senha, 10);
 
     try {
-      const usuario = await this.prisma.sis_usuarios.create({
-        data: {
-          nome: data.nome,
-          email: data.email,
-          senha: senhaHash,
-          trash: 0,
-        },
-        select: {
-          id: true,
-          nome: true,
-          email: true,
-          // senha e trash não retornam por segurança/coerência com seu Laravel
-        },
+      const usuario = await this.repo.create({
+        nome: data.nome,
+        email: data.email,
+        senha: senhaHash,
+        trash: 0,
       });
 
       return {
@@ -54,9 +43,7 @@ export class UsuarioService {
 
   async remove(id: string) {
     try {
-      await this.prisma.sis_usuarios.delete({
-        where: { id: id },
-      });
+      await this.repo.delete(id);
       return { message: 'Usuário removido com sucesso!' };
     } catch (e: any) {
       // P2025 = record not found

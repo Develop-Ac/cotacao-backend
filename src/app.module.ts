@@ -15,6 +15,8 @@ import { UtilsModule } from './utils/utils.module';
 import { OrdemServicoModule } from './oficina/checkList/ordem-servico/ordem-servico.module';
 import { ImagesModule } from './oficina/checkList/img/img.module';
 import { PedidoModule } from './compras/cotacao/pedido/pedido.module';
+import { S3Module } from './storage/s3.module';
+import { UploadsModule } from './oficina/s3/s3.module';
 
 @Module({
 imports: [
@@ -31,6 +33,8 @@ imports: [
     // UtilsModule,
     OrdemServicoModule,
     PedidoModule,
+    S3Module,
+    UploadsModule,
 
     // ⬇️ Prefixa *somente* esses módulos com /compras
     RouterModule.register([
@@ -38,6 +42,7 @@ imports: [
       { path: 'oficina', module: GenerateChecklistPdfModule },
       { path: 'oficina', module: OrdemServicoModule },
       { path: 'oficina', module: ImagesModule },
+      { path: 'oficina', module: UploadsModule },
       { path: 'compras', module: OpenQueryHttpModule }, 
       { path: 'compras', module: CotacaoModule }, 
       { path: 'compras', module: FornecedorModule },

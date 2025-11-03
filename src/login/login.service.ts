@@ -1,18 +1,16 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { LoginRepository } from './login.repository';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class LoginService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: LoginRepository) {}
 
   /**
    * Valida credenciais e retorna o usuário (sem a senha) em caso de sucesso.
    */
   async login(email: string, senha: string) {
-    const usuario = await this.prisma.sis_usuarios.findUnique({
-      where: { email },
-    });
+    const usuario = await this.repo.findUsuarioByEmail(email);
 
     if (!usuario) {
       return {

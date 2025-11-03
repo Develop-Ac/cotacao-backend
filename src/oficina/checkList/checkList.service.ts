@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { ChecklistRepository } from './checkList.repository';
 import { CreateChecklistDto } from './dto/create-checklist.dto';
 import { Prisma } from '@prisma/client';
 
@@ -13,7 +13,7 @@ type ListQuery = {
 
 @Injectable()
 export class ChecklistsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: ChecklistRepository) {}
 
   /** CREATE */
   async create(body: CreateChecklistDto) {
@@ -34,55 +34,51 @@ export class ChecklistsService {
     const assinaturaResponsavel =
       body.assinaturasresponsavelBase64 ?? body.assinaturaResponsavelBase64 ?? null;
 
-    return this.prisma.ofi_checklists.create({
-      data: {
-        osInterna: body.osInterna ?? null,
-        dataHoraEntrada: body.dataHoraEntrada ? new Date(body.dataHoraEntrada) : null,
-        observacoes: body.observacoes ?? null,
-        combustivelPercentual: body.combustivelPercentual ?? null,
+    return this.repo.create({
+      osInterna: body.osInterna ?? null,
+      dataHoraEntrada: body.dataHoraEntrada ? new Date(body.dataHoraEntrada) : null,
+      observacoes: body.observacoes ?? null,
+      combustivelPercentual: body.combustivelPercentual ?? null,
 
-        clienteNome: body.clienteNome ?? null,
-        clienteDoc: body.clienteDoc ?? null,
-        clienteTel: body.clienteTel ?? null,
-        clienteEnd: body.clienteEnd ?? null,
+      clienteNome: body.clienteNome ?? null,
+      clienteDoc: body.clienteDoc ?? null,
+      clienteTel: body.clienteTel ?? null,
+      clienteEnd: body.clienteEnd ?? null,
 
-        veiculoNome: body.veiculoNome ?? null,
-        veiculoPlaca: body.veiculoPlaca ?? null,
-        veiculoCor: body.veiculoCor ?? null,
-        veiculoKm: veiculoKmBig, // se seu schema for Int?, troque para Number(...) ou ajuste o schema
+      veiculoNome: body.veiculoNome ?? null,
+      veiculoPlaca: body.veiculoPlaca ?? null,
+      veiculoCor: body.veiculoCor ?? null,
+      veiculoKm: veiculoKmBig,
 
-        // novos campos
-        assinaturasclienteBase64: assinaturaCliente,
-        assinaturasresponsavelBase64: assinaturaResponsavel,
+      assinaturasclienteBase64: assinaturaCliente,
+      assinaturasresponsavelBase64: assinaturaResponsavel,
 
-        // relacionamentos
-        ofi_checklists_items: body.checklist?.length
-          ? {
-              create: body.checklist.map((i) => ({
-                item: i.item,
-                status: i.status,
-              })),
-            }
-          : undefined,
+      ofi_checklists_items: body.checklist?.length
+        ? {
+            create: body.checklist.map((i) => ({
+              item: i.item,
+              status: i.status,
+            })),
+          }
+        : undefined,
 
-        ofi_checklists_avarias: body.avarias?.length
-          ? {
-              create: body.avarias.map((a) => ({
-                tipo: a.tipo ?? null,
-                peca: a.peca ?? null,
-                observacoes: a.observacoes ?? null,
-                posX: a.posX ?? null,
-                posY: a.posY ?? null,
-                posZ: a.posZ ?? null,
-                normX: a.normX ?? null,
-                normY: a.normY ?? null,
-                normZ: a.normZ ?? null,
-                fotoBase64: a.fotoBase64 ?? null,
-                timestamp: a.timestamp ? new Date(a.timestamp) : null,
-              })),
-            }
-          : undefined,
-      },
+      ofi_checklists_avarias: body.avarias?.length
+        ? {
+            create: body.avarias.map((a) => ({
+              tipo: a.tipo ?? null,
+              peca: a.peca ?? null,
+              observacoes: a.observacoes ?? null,
+              posX: a.posX ?? null,
+              posY: a.posY ?? null,
+              posZ: a.posZ ?? null,
+              normX: a.normX ?? null,
+              normY: a.normY ?? null,
+              normZ: a.normZ ?? null,
+              fotoBase64: a.fotoBase64 ?? null,
+              timestamp: a.timestamp ? new Date(a.timestamp) : null,
+            })),
+          }
+        : undefined,
     });
   }
 
@@ -110,9 +106,9 @@ const where: Prisma.ofi_checklistsWhereInput | undefined = search
     }
   : undefined;
 
-    const [total, data] = await this.prisma.$transaction([
-      this.prisma.ofi_checklists.count({ where }),
-      this.prisma.ofi_checklists.findMany({
+    const [total, data] = await this.repo.transaction(async (tx) => {
+      const count = await tx.ofi_checklists.count({ where });
+      const items = await tx.ofi_checklists.findMany({
         where,
         orderBy: { [orderByField]: orderDir },
         skip,
@@ -129,8 +125,9 @@ const where: Prisma.ofi_checklistsWhereInput | undefined = search
           createdAt: true,
           updatedAt: true,
         },
-      }),
-    ]);
+      });
+      return [count, items] as const;
+    });
 
     return {
       page,
@@ -143,12 +140,9 @@ const where: Prisma.ofi_checklistsWhereInput | undefined = search
 
   /** GET BY ID (com relacionamentos) */
   async findOne(id: string) {
-    const item = await this.prisma.ofi_checklists.findUnique({
-      where: { id },
-      include: {
-        ofi_checklists_items: true,
-        ofi_checklists_avarias: true,
-      },
+    const item = await this.repo.findUnique({ id }, {
+      ofi_checklists_items: true,
+      ofi_checklists_avarias: true,
     });
 
     if (!item) {
@@ -160,10 +154,10 @@ const where: Prisma.ofi_checklistsWhereInput | undefined = search
   /** DELETE */
   async remove(id: string) {
     // garante que existe antes de excluir
-    const exists = await this.prisma.ofi_checklists.findUnique({ where: { id } });
+    const exists = await this.repo.findUnique({ id });
     if (!exists) throw new NotFoundException('Checklist não encontrado');
 
-    await this.prisma.ofi_checklists.delete({ where: { id } });
+    await this.repo.delete({ id });
     return { ok: true };
   }
 }

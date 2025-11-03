@@ -1,27 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { ImagesRepository } from './img.repository';
 
 @Injectable()
 export class ImagesService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly repo: ImagesRepository) {}
 
   /**
    * Retorna a lista de avarias (imagens) de um checklist.
    * Campos: fotoBase64, peca, observacoes, tipo
    */
   async listByChecklistId(checklistId: string) {
-    const rows = await this.prisma.ofi_checklists_avarias.findMany({
-      where: { checklistId },
-      orderBy: { timestamp: 'asc' }, // opcional
-      select: {
-        fotoBase64: true,
-        peca: true,
-        observacoes: true,
-        tipo: true,
-      },
-    });
+    const rows = await this.repo.listByChecklistId(checklistId);
 
-    // Retorna sempre 200 com array (vazio se não houver)
     return {
       checklistId,
       count: rows.length,

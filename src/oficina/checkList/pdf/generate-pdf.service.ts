@@ -1,7 +1,7 @@
 // src/oficina/checkListPdf/generate-pdf.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { GenerateChecklistPdfRepository } from './generate-pdf.repository';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -10,7 +10,7 @@ type PDFDoc = InstanceType<typeof PDFDocument>;
 
 @Injectable()
 export class GenerateChecklistPdfService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: GenerateChecklistPdfRepository) {}
 
   // ---------- Util: localizar logo e retornar Buffer ----------
   private getLogoBuffer(): Buffer | null {
@@ -232,13 +232,7 @@ export class GenerateChecklistPdfService {
   }
 
   async generatePdfBuffer(id: string): Promise<Buffer> {
-    const c = await this.prisma.ofi_checklists.findUnique({
-      where: { id },
-      include: {
-        ofi_checklists_items: true,
-        ofi_checklists_avarias: true,
-      },
-    });
+    const c = await this.repo.findChecklistWithRelations(id);
     if (!c) throw new NotFoundException('Checklist não encontrado');
 
     const doc = new PDFDocument({ size: 'A4', margin: 12 });
