@@ -1,19 +1,35 @@
+// src/storage/s3.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import {
   S3Client,
   PutObjectCommand,
   HeadBucketCommand,
   CreateBucketCommand,
+  GetObjectCommand,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
 import * as https from 'https';
+
+type PutObjectParams = {
+  bucket: string;
+  key: string;
+  body: Buffer | Uint8Array | Blob | string;
+  contentType?: string;
+};
+
+type PresignParams = {
+  bucket: string;
+  key: string;
+  expiresIn?: number; // segundos (default 3600)
+};
 
 @Injectable()
 export class S3Service {
   private readonly logger = new Logger(S3Service.name);
   private readonly client: S3Client;
   private readonly region = process.env.S3_REGION || 'us-east-1';
-  private readonly endpoint = process.env.S3_ENDPOINT; // ex.: https://minio.seu.dom:9000
+  private readonly endpoint = process.env.S3_ENDPOINT; // ex.: http://minio:9000 ou https://s3-acesso...
   private readonly forcePathStyle =
     String(process.env.S3_FORCE_PATH_STYLE ?? 'true').toLowerCase() === 'true';
 
@@ -25,7 +41,6 @@ export class S3Service {
     const insecure =
       String(process.env.S3_INSECURE_TLS ?? 'false').toLowerCase() === 'true';
 
-    // Apenas se realmente precisar ignorar validação do cert:
     const requestHandler = insecure
       ? new NodeHttpHandler({
           httpsAgent: new https.Agent({ rejectUnauthorized: false }),
@@ -34,13 +49,13 @@ export class S3Service {
 
     this.client = new S3Client({
       region: this.region,
-      endpoint: this.endpoint,
-      forcePathStyle: this.forcePathStyle,
+      endpoint: this.endpoint,       // necessário p/ MinIO
+      forcePathStyle: this.forcePathStyle, // necessário p/ MinIO
       credentials: {
         accessKeyId: process.env.S3_ACCESS_KEY!,
         secretAccessKey: process.env.S3_SECRET_KEY!,
       },
-      requestHandler, // <- usa agente inseguro só se habilitado
+      requestHandler,
     });
 
     if (insecure) {
@@ -50,6 +65,7 @@ export class S3Service {
     }
   }
 
+  /** Garante que o bucket exista. */
   async ensureBucket(bucket: string): Promise<void> {
     try {
       await this.client.send(new HeadBucketCommand({ Bucket: bucket }));
@@ -60,13 +76,8 @@ export class S3Service {
     }
   }
 
-  async putObject(params: {
-    bucket: string;
-    key: string;
-    body: Buffer | Uint8Array | Blob | string;
-    contentType?: string;
-  }): Promise<void> {
-    const { bucket, key, body, contentType } = params;
+  /** Upload simples. */
+  async putObject({ bucket, key, body, contentType }: PutObjectParams): Promise<void> {
     if (!bucket) throw new Error('Bucket não informado.');
     if (!key) throw new Error('Key não informada.');
 
@@ -78,8 +89,18 @@ export class S3Service {
         Key: key,
         Body: body,
         ContentType: contentType || 'application/octet-stream',
-        ACL: 'private',
+        ACL: 'private', // ajuste se quiser público
       }),
     );
+  }
+
+  /** Gera URL pré-assinada de GET. */
+  async getPresignedGetUrl({ bucket, key, expiresIn = 3600 }: PresignParams): Promise<string> {
+    if (!bucket) throw new Error('Bucket não informado.');
+    if (!key) throw new Error('Key não informada.');
+
+    const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
+    const url = await getSignedUrl(this.client, cmd, { expiresIn });
+    return url;
   }
 }
