@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { EstoqueSaidasRepository } from './contagem.repository';
 import { EstoqueSaidaRow } from './contagem.types';
+import { CreateContagemDto } from './dto/create-contagem.dto';
 
 @Injectable()
 export class EstoqueSaidasService {
@@ -12,5 +13,9 @@ export class EstoqueSaidasService {
     empresa: string;
   }): Promise<EstoqueSaidaRow[]> {
     return this.repo.fetchSaidas(filters);
+  }
+
+  async createContagem(createContagemDto: CreateContagemDto) {
+    return this.repo.createContagem(createContagemDto);
   }
 }

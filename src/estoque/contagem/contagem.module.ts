@@ -4,6 +4,7 @@ import { EstoqueSaidasService } from './contagem.service';
 import { EstoqueSaidasRepository } from './contagem.repository';
 import { OpenQueryService } from '../../shared/database/openquery/openquery.service';
 import { ConfigModule } from '@nestjs/config';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Module({
   imports: [ConfigModule],
@@ -15,6 +16,9 @@ import { ConfigModule } from '@nestjs/config';
 
     // Provider do MSSQL (o seu serviço compartilhado)
     OpenQueryService,
+    
+    // Prisma para PostgreSQL
+    PrismaService,
   ],
   exports: [EstoqueSaidasService],
 })

@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { 
   ApiTags, 
   ApiOperation, 
@@ -6,15 +6,18 @@ import {
   ApiOkResponse, 
   ApiBadRequestResponse,
   ApiInternalServerErrorResponse,
-  ApiExtraModels
+  ApiExtraModels,
+  ApiCreatedResponse
 } from '@nestjs/swagger';
 import { EstoqueSaidasService } from './contagem.service';
 import { GetSaidasQueryDto } from './dto/get-saidas.query.dto';
 import { EstoqueSaidaRow } from './contagem.types';
 import { EstoqueSaidaResponseDto } from './dto/estoque-saida-response.dto';
+import { CreateContagemDto } from './dto/create-contagem.dto';
+import { ContagemResponseDto } from './dto/contagem-response.dto';
 
 @ApiTags('Estoque')
-@ApiExtraModels(GetSaidasQueryDto, EstoqueSaidaResponseDto)
+@ApiExtraModels(GetSaidasQueryDto, EstoqueSaidaResponseDto, CreateContagemDto, ContagemResponseDto)
 @Controller('contagem')
 export class EstoqueSaidasController {
   constructor(private readonly service: EstoqueSaidasService) {}
@@ -83,5 +86,33 @@ export class EstoqueSaidasController {
   async getSaidas(@Query() q: GetSaidasQueryDto): Promise<EstoqueSaidaRow[]> {
     const { data_inicial, data_final, empresa = '3' } = q;
     return this.service.listarSaidas({ data_inicial, data_final, empresa });
+  }
+
+  @Post()
+  @ApiOperation({
+    summary: 'Criar nova contagem de estoque',
+    description: 'Registra uma nova contagem de estoque com os produtos verificados pelo colaborador'
+  })
+  @ApiCreatedResponse({
+    description: 'Contagem criada com sucesso',
+    type: ContagemResponseDto
+  })
+  @ApiBadRequestResponse({
+    description: 'Dados inválidos fornecidos',
+    example: {
+      statusCode: 400,
+      message: ['colaborador não deve estar vazio'],
+      error: 'Bad Request'
+    }
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Erro interno do servidor',
+    example: {
+      statusCode: 500,
+      message: 'Erro interno do servidor'
+    }
+  })
+  async createContagem(@Body() createContagemDto: CreateContagemDto): Promise<ContagemResponseDto> {
+    return this.service.createContagem(createContagemDto);
   }
 }

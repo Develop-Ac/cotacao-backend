@@ -15,6 +15,9 @@ model sis_usuarios {
   setor      String
   senha      String
   trash      Int    @default(0)
+  
+  // relação com contagem de estoque
+  est_contagem est_contagem[]
 }
 
 model com_cotacao {
@@ -166,4 +169,41 @@ model com_pedido_itens {
   // evita duplicidade do mesmo produto-fornecedor dentro do mesmo pedido
   @@unique([pedido_id, pro_codigo, for_codigo])
   @@index([pedido_id])
+}
+
+model est_contagem {
+  id          String   @id @default(cuid())
+  colaborador String   // referência ao ID do usuário
+  contagem    Int      @default(1) // tipo da contagem (1, 2 ou 3)
+  created_at  DateTime @default(now())
+  
+  // relação com usuário
+  usuario     sis_usuarios @relation(fields: [colaborador], references: [id])
+  
+  // relação com itens da contagem
+  itens       est_contagem_itens[]
+  
+  @@index([colaborador])
+}
+
+model est_contagem_itens {
+  id               String   @id @default(cuid())
+  contagem_id      String   // referência à contagem
+  data             DateTime
+  cod_produto      Int
+  desc_produto     String
+  mar_descricao    String?
+  ref_fabricante   String?
+  ref_fornecedor   String?
+  localizacao      String?
+  unidade          String?
+  qtde_saida       Int
+  estoque          Int
+  reserva          Int
+  
+  // relação com a contagem
+  contagem         est_contagem @relation(fields: [contagem_id], references: [id], onDelete: Cascade)
+  
+  @@index([contagem_id])
+  @@index([cod_produto])
 }

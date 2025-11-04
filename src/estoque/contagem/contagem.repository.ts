@@ -1,6 +1,8 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { OpenQueryService } from '../../shared/database/openquery/openquery.service';
 import { EstoqueSaidaRow } from './contagem.types';
+import { PrismaService } from '../../prisma/prisma.service';
+import { CreateContagemDto } from './dto/create-contagem.dto';
 
 /**
  * Responsável por montar o T-SQL dinâmico com OPENQUERY(CONSULTA, '...').
@@ -9,7 +11,10 @@ import { EstoqueSaidaRow } from './contagem.types';
  */
 @Injectable()
 export class EstoqueSaidasRepository {
-  constructor(private readonly oq: OpenQueryService) {}
+  constructor(
+    private readonly oq: OpenQueryService,
+    private readonly prisma: PrismaService
+  ) {}
 
   async fetchSaidas(params: {
     data_inicial: string; // YYYY-MM-DD
@@ -76,5 +81,56 @@ export class EstoqueSaidasRepository {
     // Executa via .query para retornar recordset
     const rows = await this.oq.query<EstoqueSaidaRow>(outerSql, {}, { timeout: 300_000 });
     return rows;
+  }
+
+  async createContagem(createContagemDto: CreateContagemDto) {
+    const { colaborador: nomeColaborador, contagem, produtos } = createContagemDto;
+
+    // Buscar o usuário pelo nome para obter o ID
+    const usuario = await this.prisma.sis_usuarios.findFirst({
+      where: {
+        nome: nomeColaborador,
+        trash: 0
+      }
+    });
+
+    if (!usuario) {
+      throw new BadRequestException(`Colaborador com nome "${nomeColaborador}" não encontrado`);
+    }
+
+    // Criar a contagem com os itens em uma transação
+    const contagemResult = await this.prisma.est_contagem.create({
+      data: {
+        colaborador: usuario.id,
+        contagem: contagem,
+        itens: {
+          create: produtos.map(produto => ({
+            data: new Date(produto.DATA),
+            cod_produto: produto.COD_PRODUTO,
+            desc_produto: produto.DESC_PRODUTO,
+            mar_descricao: produto.MAR_DESCRICAO || null,
+            ref_fabricante: produto.REF_FABRICANTE || null,
+            ref_fornecedor: produto.REF_FORNECEDOR || null,
+            localizacao: produto.LOCALIZACAO || null,
+            unidade: produto.UNIDADE || null,
+            qtde_saida: produto.QTDE_SAIDA,
+            estoque: produto.ESTOQUE,
+            reserva: produto.RESERVA
+          }))
+        }
+      },
+      include: {
+        usuario: {
+          select: {
+            id: true,
+            nome: true,
+            codigo: true
+          }
+        },
+        itens: true
+      }
+    });
+
+    return contagem;
   }
 }
