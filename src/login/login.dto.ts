@@ -1,11 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsString } from 'class-validator';
 
 export class LoginDto {
-  @ApiProperty({ example: 'usuario@empresa.com' })
+  @ApiProperty({ example: 'USR001' })
   @IsNotEmpty()
-  @IsEmail()
-  email!: string;
+  @IsString()
+  codigo!: string;
 
   @ApiProperty({ example: 'SenhaF0rte!' })
   @IsNotEmpty()
@@ -21,8 +21,8 @@ export class LoginResponseView {
   expires_in!: number;
 
   @ApiProperty({
-    example: { usuario_id: 123, nome: 'Giovana Custodio', email: 'usuario@empresa.com' },
+    example: { usuario_id: 123, nome: 'Giovana Custodio', codigo: 'USR001' },
   })
-  user!: { usuario_id: number; nome: string; email: string };
+  user!: { usuario_id: number; nome: string; codigo: string };
 }
 

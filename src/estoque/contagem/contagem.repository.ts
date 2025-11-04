@@ -133,4 +133,44 @@ export class EstoqueSaidasRepository {
 
     return contagemResult;
   }
+
+  async getContagensByUsuario(idUsuario: string) {
+    // Verificar se o usuário existe
+    const usuario = await this.prisma.sis_usuarios.findUnique({
+      where: {
+        id: idUsuario,
+        trash: 0
+      }
+    });
+
+    if (!usuario) {
+      throw new BadRequestException(`Usuário com ID "${idUsuario}" não encontrado`);
+    }
+
+    // Buscar todas as contagens do usuário com seus itens
+    const contagens = await this.prisma.est_contagem.findMany({
+      where: {
+        colaborador: idUsuario
+      },
+      include: {
+        usuario: {
+          select: {
+            id: true,
+            nome: true,
+            codigo: true
+          }
+        },
+        itens: {
+          orderBy: {
+            cod_produto: 'asc'
+          }
+        }
+      },
+      orderBy: {
+        created_at: 'desc'
+      }
+    });
+
+    return contagens;
+  }
 }

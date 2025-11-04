@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Param } from '@nestjs/common';
 import { 
   ApiTags, 
   ApiOperation, 
@@ -7,7 +7,8 @@ import {
   ApiBadRequestResponse,
   ApiInternalServerErrorResponse,
   ApiExtraModels,
-  ApiCreatedResponse
+  ApiCreatedResponse,
+  ApiParam
 } from '@nestjs/swagger';
 import { EstoqueSaidasService } from './contagem.service';
 import { GetSaidasQueryDto } from './dto/get-saidas.query.dto';
@@ -86,6 +87,71 @@ export class EstoqueSaidasController {
   async getSaidas(@Query() q: GetSaidasQueryDto): Promise<EstoqueSaidaRow[]> {
     const { data_inicial, data_final, empresa = '3' } = q;
     return this.service.listarSaidas({ data_inicial, data_final, empresa });
+  }
+
+  @Get(':id_usuario')
+  @ApiOperation({
+    summary: 'Listar contagens de um usuário',
+    description: 'Retorna uma lista das contagens realizadas por um usuário específico, incluindo todos os itens de cada contagem'
+  })
+  @ApiParam({
+    name: 'id_usuario',
+    description: 'ID único do usuário/colaborador',
+    example: 'clx0987654321fedcba',
+    type: 'string'
+  })
+  @ApiOkResponse({
+    description: 'Lista de contagens do usuário retornada com sucesso',
+    type: ContagemResponseDto,
+    isArray: true,
+    example: [
+      {
+        id: 'clx1234567890abcdef',
+        colaborador: 'clx0987654321fedcba',
+        contagem: 1,
+        created_at: '2025-11-04T14:30:00.000Z',
+        usuario: {
+          id: 'clx0987654321fedcba',
+          nome: 'DIOGO DA SILVA SANTOS',
+          codigo: 'DS001'
+        },
+        itens: [
+          {
+            id: 'clx1111222233334444',
+            contagem_id: 'clx1234567890abcdef',
+            data: '2025-11-04T00:00:00.000Z',
+            cod_produto: 23251,
+            desc_produto: 'CAPA P/CHOQUE DIANT. S-10 12/16 PRETO LISO - DTS',
+            mar_descricao: 'DTS',
+            ref_fabricante: null,
+            ref_fornecedor: '056597',
+            localizacao: 'B1002A03',
+            unidade: 'UN',
+            qtde_saida: 1,
+            estoque: 8,
+            reserva: 2
+          }
+        ]
+      }
+    ]
+  })
+  @ApiBadRequestResponse({
+    description: 'ID do usuário inválido ou usuário não encontrado',
+    example: {
+      statusCode: 400,
+      message: 'Usuário com ID "invalid-id" não encontrado',
+      error: 'Bad Request'
+    }
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Erro interno do servidor',
+    example: {
+      statusCode: 500,
+      message: 'Erro interno do servidor'
+    }
+  })
+  async getContagensByUsuario(@Param('id_usuario') idUsuario: string): Promise<ContagemResponseDto[]> {
+    return this.service.getContagensByUsuario(idUsuario);
   }
 
   @Post()

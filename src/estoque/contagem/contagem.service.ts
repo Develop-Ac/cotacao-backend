@@ -19,4 +19,8 @@ export class EstoqueSaidasService {
   async createContagem(createContagemDto: CreateContagemDto): Promise<ContagemResponseDto> {
     return this.repo.createContagem(createContagemDto);
   }
+
+  async getContagensByUsuario(idUsuario: string): Promise<ContagemResponseDto[]> {
+    return this.repo.getContagensByUsuario(idUsuario);
+  }
 }

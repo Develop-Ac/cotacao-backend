@@ -37,15 +37,15 @@ export class LoginController {
     examples: {
       Valido: {
         summary: 'Exemplo válido',
-        value: { email: 'usuario@empresa.com', senha: 'SenhaF0rte!' },
+        value: { codigo: 'USR001', senha: 'SenhaF0rte!' },
       },
-      EmailInvalido: {
-        summary: 'Email inválido',
-        value: { email: 'usuario@empresa', senha: 'qualquer' },
+      CodigoInvalido: {
+        summary: 'Código inválido',
+        value: { codigo: '', senha: 'qualquer' },
       },
       CamposVazios: {
         summary: 'Campos vazios',
-        value: { email: '', senha: '' },
+        value: { codigo: '', senha: '' },
       },
     },
   })
@@ -60,7 +60,7 @@ export class LoginController {
         user: {
           usuario_id: 123,
           nome: 'Giovana Custodio',
-          email: 'usuario@empresa.com',
+          codigo: 'USR001',
         },
       },
     },
@@ -71,8 +71,8 @@ export class LoginController {
       example: {
         statusCode: 400,
         message: [
-          'email must be an email',
-          'email should not be empty',
+          'codigo should not be empty',
+          'codigo must be a string',
           'senha should not be empty',
         ],
         error: 'Bad Request',
@@ -84,13 +84,13 @@ export class LoginController {
     schema: {
       example: {
         statusCode: 401,
-        message: 'Email ou senha inválidos',
+        message: 'Código ou senha inválidos',
         error: 'Unauthorized',
       },
     },
   })
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   async login(@Body() dto: LoginDto) {
-    return this.loginService.login(dto.email, dto.senha);
+    return this.loginService.login(dto.codigo, dto.senha);
   }
 }

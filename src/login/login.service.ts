@@ -19,7 +19,10 @@ export class LoginService {
       }
     }
 
-    if (senha != usuario.senha) {
+    const senhaValida = await bcrypt.compare(senha, usuario.senha);
+    console.log(senha);
+    console.log(usuario.senha);
+    if (!senhaValida) {
       return {
         success: false,
         message: 'Senha incorreta.'
@@ -30,7 +33,8 @@ export class LoginService {
       success: true,
       message: 'Login realizado com sucesso',
       usuario: usuario.nome,
-      usuario_id: usuario.id
+      usuario_id: usuario.id,
+      codigo: usuario.codigo
     };
   }
 }
