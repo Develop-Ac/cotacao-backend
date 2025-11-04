@@ -8,7 +8,7 @@ export class UsuarioRepository {
 
   findAll() {
     return this.prisma.sis_usuarios.findMany({
-      select: { id: true, nome: true, email: true },
+      select: { id: true, nome: true, setor: true },
       orderBy: { id: 'asc' },
     });
   }
@@ -16,7 +16,7 @@ export class UsuarioRepository {
   create(data: Prisma.sis_usuariosCreateInput) {
     return this.prisma.sis_usuarios.create({
       data,
-      select: { id: true, nome: true, email: true },
+      select: { id: true, nome: true, setor: true },
     });
   }
 

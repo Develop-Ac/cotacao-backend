@@ -4,23 +4,67 @@ import { PedidoService } from './pedido.service';
 import { CreatePedidoDto } from './dto/create-pedido.dto';
 import express from 'express';
 import type { Response as ExpressResponse } from 'express';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { 
+  ApiOperation, 
+  ApiTags, 
+  ApiParam, 
+  ApiQuery, 
+  ApiOkResponse, 
+  ApiCreatedResponse,
+  ApiBadRequestResponse,
+  ApiProduces
+} from '@nestjs/swagger';
 
-@ApiTags('Cotação de Pedidos')
+@ApiTags('Compras - Pedidos')
 @Controller('pedido')
 export class PedidoController {
   constructor(private readonly service: PedidoService) {}
 
     // GET /pedido  -> listagem leve
   @Get()
-  @ApiOperation({ summary: 'Lista pedidos (leve)' })
+  @ApiOperation({ 
+    summary: 'Lista pedidos',
+    description: 'Retorna uma listagem resumida de todos os pedidos'
+  })
+  @ApiOkResponse({
+    description: 'Lista de pedidos retornada com sucesso'
+  })
   async listagem() {
     return this.service.listagem();
   } 
 
-  // GET /pedido/:pedido  -> PDF
+  // GET /pedido/:id  -> PDF
   @Get(':id')
-  @ApiOperation({ summary: 'Gera PDF do pedido' })
+  @ApiOperation({ 
+    summary: 'Gera PDF do pedido',
+    description: 'Gera e retorna um arquivo PDF com os detalhes do pedido'
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID do pedido',
+    example: '123'
+  })
+  @ApiQuery({
+    name: 'marca',
+    description: 'Incluir marca no PDF (true/false)',
+    required: false,
+    example: 'true'
+  })
+  @ApiProduces('application/pdf')
+  @ApiOkResponse({
+    description: 'PDF gerado com sucesso',
+    content: {
+      'application/pdf': {
+        schema: {
+          type: 'string',
+          format: 'binary'
+        }
+      }
+    }
+  })
+  @ApiBadRequestResponse({
+    description: 'ID do pedido inválido'
+  })
   async pdf(
     @Param('id') id: string,
     @Query('marca') marca: string | undefined,
@@ -35,7 +79,16 @@ export class PedidoController {
 
 
   @Post()
-  @ApiOperation({ summary: 'Cria ou atualiza pedido' })
+  @ApiOperation({ 
+    summary: 'Cria ou atualiza pedido',
+    description: 'Cria um novo pedido ou atualiza um existente'
+  })
+  @ApiCreatedResponse({
+    description: 'Pedido criado/atualizado com sucesso'
+  })
+  @ApiBadRequestResponse({
+    description: 'Dados inválidos fornecidos'
+  })
   async create(@Body() body: CreatePedidoDto) {
     return this.service.createOrReplace(body);
   }

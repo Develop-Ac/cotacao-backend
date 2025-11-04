@@ -11,7 +11,8 @@ datasource db {
 model sis_usuarios {
   id         String    @id @default(cuid())
   nome       String
-  email      String @unique
+  codigo     String    @unique
+  setor      String
   senha      String
   trash      Int    @default(0)
 }

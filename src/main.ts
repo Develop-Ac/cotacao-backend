@@ -27,29 +27,73 @@ async function bootstrap() {
   // === Swagger only if enabled ===
   if (process.env.SWAGGER_ENABLED === 'true') {
     const config = new DocumentBuilder()
-      .setTitle('AC Entregas API')
-      .setDescription('Documentação da API de Entregas / Serviços Externos / Admin')
-      .setVersion('1.0.0')
+      .setTitle('Intranet AC Acessórios API')
+      .setDescription(`
+        API do sistema de intranet da AC Acessórios
+
+        ## Módulos principais:
+        - **Sistema**: Health check e informações gerais
+        - **Auth**: Autenticação de usuários
+        - **Usuários**: Gerenciamento de usuários do sistema
+        - **Estoque**: Consulta de movimentações de estoque
+        - **Compras**: Cotações, pedidos e fornecedores
+        - **Oficina**: Checklists, ordens de serviço e uploads
+        - **Upload de Arquivos**: Gerenciamento de imagens no S3/MinIO
+        - **Utilitários**: Ferramentas auxiliares e consultas ao banco
+
+        ## Autenticação:
+        A API utiliza tokens de acesso que podem ser enviados via query parameter \`token\` ou header \`Authorization: Bearer <token>\`.
+      `)
+      .setVersion('2.0.0')
+      .setContact('AC Acessórios - TI', 'https://acacessorios.com.br', 'ti@acacessorios.com.br')
+      .setLicense('Proprietário', '')
       // se usar auth por Bearer em algum endpoint:
       .addBearerAuth(
-        { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+        { 
+          type: 'http', 
+          scheme: 'bearer', 
+          bearerFormat: 'JWT',
+          description: 'Token JWT para autenticação'
+        },
         'jwt', // nome do esquema
       )
       // como você usa APP_TOKEN por query/body, exponha um apiKey por query
       .addApiKey(
-        { type: 'apiKey', name: 'token', in: 'query', description: 'APP_TOKEN' },
+        { 
+          type: 'apiKey', 
+          name: 'token', 
+          in: 'query', 
+          description: 'TOKEN de acesso da aplicação enviado via query parameter'
+        },
         'appToken', // nome do esquema
       )
       // (opcional) mostre servidores
-      .addServer(process.env.PUBLIC_URL ?? 'http://localhost:8000')
+      .addServer(process.env.PUBLIC_URL ?? 'http://localhost:8000', 'Servidor de Desenvolvimento')
+      .addServer('https://intranetbackend.acacessorios.local', 'Servidor de Produção')
       .build();
 
-    const document = SwaggerModule.createDocument(app, config);
+    const document = SwaggerModule.createDocument(app, config, {
+      operationIdFactory: (controllerKey: string, methodKey: string) => methodKey,
+      deepScanRoutes: true,
+    });
+    
     SwaggerModule.setup('docs', app, document, {
       swaggerOptions: {
         persistAuthorization: true,
+        displayRequestDuration: true,
+        docExpansion: 'none',
+        filter: true,
+        showRequestHeaders: true,
+        tryItOutEnabled: true,
       },
-      customSiteTitle: 'AC Entregas — Swagger',
+      customSiteTitle: 'Intranet AC Acessórios — API Documentation',
+      customfavIcon: '/favicon.ico',
+      customJs: [
+        'https://unpkg.com/swagger-ui-themes@3.0.1/themes/3.x/theme-material.css',
+      ],
+      customCssUrl: [
+        'https://unpkg.com/swagger-ui-themes@3.0.1/themes/3.x/theme-material.css',
+      ],
     });
     // Agora a UI fica em /docs e o JSON em /docs-json
   }

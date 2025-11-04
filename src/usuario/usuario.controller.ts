@@ -38,8 +38,8 @@ export class UsuarioController {
       type: 'array',
       items: { $ref: getSchemaPath(UsuarioView) },
       example: [
-        { usuario_id: 1, nome: 'Giovana Custodio', email: 'giovana.custodio@empresa.com' },
-        { usuario_id: 2, nome: 'Carlos Siqueira', email: 'carlos.siqueira@empresa.com' },
+        { id: 'cuid1', nome: 'Giovana Custodio', codigo: '12345', setor: 'TI' },
+        { id: 'cuid2', nome: 'Carlos Siqueira', codigo: '67890', setor: 'RH' },
       ],
     },
   })
@@ -59,7 +59,8 @@ export class UsuarioController {
           summary: 'Exemplo mínimo',
           value: {
             nome: 'Giovana Custodio',
-            email: 'giovana.custodio@empresa.com',
+            codigo: '12345',
+            setor: 'TI',
             senha: 'SenhaF0rte!',
           },
         },
@@ -67,7 +68,8 @@ export class UsuarioController {
           summary: 'Outro exemplo válido',
           value: {
             nome: 'Carlos Siqueira',
-            email: 'carlos.siqueira@empresa.com',
+            codigo: '67890',
+            setor: 'RH',
             senha: 'S3nh@Segura',
           },
         },
@@ -91,13 +93,13 @@ export class UsuarioController {
     schema: {
       example: {
         statusCode: 400,
-        message: ['email must be an email', 'senha must be longer than or equal to 6 characters'],
+        message: ['codigo should not be empty', 'senha must be longer than or equal to 6 characters'],
         error: 'Bad Request',
       },
     },
   })
   async store(@Body() dto: CreateUsuarioDto) {
-    const payload: CreateUsuarioInput = { nome: dto.nome, email: dto.email, senha: dto.senha };
+    const payload: CreateUsuarioInput = { nome: dto.nome, codigo: dto.codigo, setor: dto.setor, senha: dto.senha };
     return this.usuarioService.create(payload);
   }
 

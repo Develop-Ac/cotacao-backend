@@ -4,7 +4,8 @@ import * as bcrypt from 'bcryptjs';
 
 export interface CreateUsuarioInput {
   nome: string;
-  email: string;
+  codigo: string;
+  setor: string;
   senha: string;
 }
 
@@ -23,7 +24,8 @@ export class UsuarioService {
     try {
       const usuario = await this.repo.create({
         nome: data.nome,
-        email: data.email,
+        codigo: data.codigo,
+        setor: data.setor,
         senha: senhaHash,
         trash: 0,
       });
@@ -33,9 +35,9 @@ export class UsuarioService {
         data: usuario,
       };
     } catch (e: any) {
-      // P2002 = unique constraint (email)
-      if (e?.code === 'P2002' && Array.isArray(e?.meta?.target) && e.meta.target.includes('email')) {
-        throw new ConflictException('E-mail já está em uso.');
+      // P2002 = unique constraint (codigo)
+      if (e?.code === 'P2002' && Array.isArray(e?.meta?.target) && e.meta.target.includes('codigo')) {
+        throw new ConflictException('Código já está em uso.');
       }
       throw e;
     }

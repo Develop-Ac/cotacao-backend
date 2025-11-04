@@ -17,6 +17,7 @@ import { ImagesModule } from './oficina/checkList/img/img.module';
 import { PedidoModule } from './compras/cotacao/pedido/pedido.module';
 import { S3Module } from './storage/s3.module';
 import { UploadsModule } from './oficina/s3/s3.module';
+import { EstoqueSaidasModule } from './estoque/contagem/contagem.module';
 
 @Module({
 imports: [
@@ -35,6 +36,7 @@ imports: [
     PedidoModule,
     S3Module,
     UploadsModule,
+    EstoqueSaidasModule,
 
     // ⬇️ Prefixa *somente* esses módulos com /compras
     RouterModule.register([
@@ -47,7 +49,8 @@ imports: [
       { path: 'compras', module: CotacaoModule }, 
       { path: 'compras', module: FornecedorModule },
       { path: 'compras', module: CotacaoSyncModule },
-      { path: 'compras', module: PedidoModule }
+      { path: 'compras', module: PedidoModule },
+      { path: 'estoque', module: EstoqueSaidasModule }
     ]),
   ],
   controllers: [AppController],

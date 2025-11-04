@@ -10,10 +10,42 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { 
+  ApiTags, 
+  ApiOperation, 
+  ApiConsumes, 
+  ApiBody, 
+  ApiOkResponse, 
+  ApiBadRequestResponse,
+  ApiQuery,
+  ApiProperty
+} from '@nestjs/swagger';
 import { memoryStorage } from 'multer';
 import sharp from 'sharp';
 import { randomBytes } from 'crypto';
 import { S3Service } from '../../storage/s3.service';
+
+class UploadResponseDto {
+  @ApiProperty({ description: 'Status da operação', example: true })
+  ok!: boolean;
+
+  @ApiProperty({ description: 'Nome do arquivo gerado', example: 'abc123def456.png' })
+  fileName!: string;
+
+  @ApiProperty({ description: 'Chave do arquivo no bucket', example: 'abc123def456.png' })
+  key!: string;
+
+  @ApiProperty({ description: 'URL pré-assinada (quando disponível)', required: false })
+  url?: string;
+}
+
+class PresignResponseDto {
+  @ApiProperty({ description: 'Status da operação', example: true })
+  ok!: boolean;
+
+  @ApiProperty({ description: 'URL pré-assinada para download', example: 'https://s3.example.com/bucket/file.png?signature=...' })
+  url!: string;
+}
 
 function smallId(len = 12) {
   const buf = randomBytes(len);
@@ -31,11 +63,45 @@ const ALLOWED = new Set([
 
 const BUCKET = process.env.S3_BUCKET_AVARIAS || 'avarias';
 
+@ApiTags('Upload de Arquivos')
 @Controller('uploads')
 export class UploadsController {
   constructor(private readonly s3: S3Service) {}
 
   @Post('avarias')
+  @ApiOperation({
+    summary: 'Upload de imagem de avaria',
+    description: 'Faz upload de uma imagem de avaria, redimensiona e armazena no S3/MinIO'
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Arquivo de imagem para upload',
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Arquivo de imagem (JPEG, PNG, WebP, HEIC, HEIF) - máximo 5MB'
+        }
+      },
+      required: ['file']
+    }
+  })
+  @ApiOkResponse({
+    description: 'Upload realizado com sucesso',
+    type: UploadResponseDto,
+    example: {
+      ok: true,
+      fileName: 'abc123def456.png',
+      key: 'abc123def456.png',
+      url: 'https://s3.example.com/avarias/abc123def456.png?signature=...'
+    }
+  })
+  @ApiBadRequestResponse({
+    description: 'Erro nos dados enviados (arquivo não enviado ou tipo inválido)',
+    example: { statusCode: 400, message: 'Arquivo obrigatório (campo "file")', error: 'Bad Request' }
+  })
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
@@ -92,6 +158,34 @@ export class UploadsController {
   }
 
   @Get('avarias/url')
+  @ApiOperation({
+    summary: 'Gerar URL pré-assinada',
+    description: 'Gera uma URL pré-assinada para download de arquivo do S3/MinIO'
+  })
+  @ApiQuery({
+    name: 'key',
+    description: 'Chave do arquivo no bucket',
+    example: 'abc123def456.png',
+    required: true
+  })
+  @ApiQuery({
+    name: 'expires',
+    description: 'Tempo de expiração em segundos (60 a 86400)',
+    example: '3600',
+    required: false
+  })
+  @ApiOkResponse({
+    description: 'URL pré-assinada gerada com sucesso',
+    type: PresignResponseDto,
+    example: {
+      ok: true,
+      url: 'https://s3.example.com/avarias/abc123def456.png?signature=...'
+    }
+  })
+  @ApiBadRequestResponse({
+    description: 'Chave não informada ou arquivo não encontrado',
+    example: { statusCode: 400, message: 'Informe key', error: 'Bad Request' }
+  })
   async presign(@Query('key') key: string, @Query('expires') expires?: string) {
     if (!key) throw new BadRequestException('Informe key');
 

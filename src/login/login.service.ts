@@ -9,8 +9,8 @@ export class LoginService {
   /**
    * Valida credenciais e retorna o usuário (sem a senha) em caso de sucesso.
    */
-  async login(email: string, senha: string) {
-    const usuario = await this.repo.findUsuarioByEmail(email);
+  async login(codigo: string, senha: string) {
+    const usuario = await this.repo.findUsuarioByCodigo(codigo);
 
     if (!usuario) {
       return {
