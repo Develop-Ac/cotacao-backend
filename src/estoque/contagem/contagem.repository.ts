@@ -131,6 +131,6 @@ export class EstoqueSaidasRepository {
       }
     });
 
-    return contagem;
+    return contagemResult;
   }
 }

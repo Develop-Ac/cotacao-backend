@@ -113,6 +113,6 @@ export class EstoqueSaidasController {
     }
   })
   async createContagem(@Body() createContagemDto: CreateContagemDto): Promise<ContagemResponseDto> {
-    return this.service.createContagem(createContagemDto);
+    return await this.service.createContagem(createContagemDto);
   }
 }
