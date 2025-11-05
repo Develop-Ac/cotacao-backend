@@ -21,6 +21,12 @@ export class ContagemResponseDto {
   contagem!: number;
   
   @ApiProperty({
+    description: 'Identificador comum para agrupar as 3 contagens criadas simultaneamente',
+    example: 'clx1234567890group'
+  })
+  contagem_cuid!: string;
+
+  @ApiProperty({
     description: 'Indica se a contagem está liberada (true quando contagem = 1, false para demais valores)',
     example: true
   })

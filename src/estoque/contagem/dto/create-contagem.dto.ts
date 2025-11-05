@@ -111,6 +111,15 @@ export class CreateContagemDto {
   contagem!: number;
 
   @ApiProperty({
+    description: 'Identificador comum para agrupar as 3 contagens criadas simultaneamente (se não informado, será gerado automaticamente)',
+    example: 'clx1234567890group',
+    required: false
+  })
+  @IsOptional()
+  @IsString()
+  contagem_cuid?: string;
+
+  @ApiProperty({
     description: 'Lista de produtos da contagem',
     type: [CreateContagemItemDto]
   })

@@ -18,9 +18,10 @@ import { CreateContagemDto } from './dto/create-contagem.dto';
 import { ContagemResponseDto } from './dto/contagem-response.dto';
 import { UpdateConferirDto } from './dto/update-conferir.dto';
 import { ConferirEstoqueResponseDto } from './dto/conferir-estoque-response.dto';
+import { UpdateLiberadoContagemDto } from './dto/update-liberado-contagem.dto';
 
 @ApiTags('Estoque')
-@ApiExtraModels(GetSaidasQueryDto, EstoqueSaidaResponseDto, CreateContagemDto, ContagemResponseDto, UpdateConferirDto, ConferirEstoqueResponseDto)
+@ApiExtraModels(GetSaidasQueryDto, EstoqueSaidaResponseDto, CreateContagemDto, ContagemResponseDto, UpdateConferirDto, ConferirEstoqueResponseDto, UpdateLiberadoContagemDto)
 @Controller('contagem')
 export class EstoqueSaidasController {
   constructor(private readonly service: EstoqueSaidasService) {}
@@ -111,6 +112,7 @@ export class EstoqueSaidasController {
         id: 'clx1234567890abcdef',
         colaborador: 'clx0987654321fedcba',
         contagem: 1,
+        contagem_cuid: 'clx1234567890group',
         liberado_contagem: true,
         created_at: '2025-11-04T14:30:00.000Z',
         usuario: {
@@ -184,6 +186,43 @@ export class EstoqueSaidasController {
   })
   async createContagem(@Body() createContagemDto: CreateContagemDto): Promise<ContagemResponseDto> {
     return await this.service.createContagem(createContagemDto);
+  }
+
+  @Put(':id')
+  @ApiOperation({
+    summary: 'Atualizar campo liberado_contagem de uma contagem',
+    description: 'Atualiza o campo booleano `liberado_contagem` de uma contagem específica'
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID da contagem a ser atualizada',
+    example: 'clx1234567890abcdef',
+    type: 'string'
+  })
+  @ApiOkResponse({
+    description: 'Contagem atualizada com sucesso',
+    example: {
+      id: 'clx1234567890abcdef',
+      liberado_contagem: false
+    }
+  })
+  @ApiBadRequestResponse({
+    description: 'ID da contagem inválido ou dados do body inválidos',
+    example: {
+      statusCode: 400,
+      message: 'Contagem não encontrada',
+      error: 'Bad Request'
+    }
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Erro interno do servidor',
+    example: {
+      statusCode: 500,
+      message: 'Erro interno do servidor'
+    }
+  })
+  async updateLiberadoContagem(@Param('id') id: string, @Body() body: UpdateLiberadoContagemDto) {
+    return this.service.updateLiberadoContagem(id, body.liberado_contagem);
   }
 
   @Put('item/:id')

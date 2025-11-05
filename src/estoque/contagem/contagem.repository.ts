@@ -85,7 +85,7 @@ export class EstoqueSaidasRepository {
   }
 
   async createContagem(createContagemDto: CreateContagemDto) {
-    const { colaborador: nomeColaborador, contagem, produtos } = createContagemDto;
+    const { colaborador: nomeColaborador, contagem, produtos, contagem_cuid } = createContagemDto;
 
     // Buscar o usuário pelo nome para obter o ID
     const usuario = await this.prisma.sis_usuarios.findFirst({
@@ -99,11 +99,15 @@ export class EstoqueSaidasRepository {
       throw new BadRequestException(`Colaborador com nome "${nomeColaborador}" não encontrado`);
     }
 
+    // Gera um CUID se não foi fornecido
+    const grupoContagem = contagem_cuid || crypto.randomUUID();
+
     // Criar a contagem com os itens em uma transação
     const contagemResult = await this.prisma.est_contagem.create({
       data: {
         colaborador: usuario.id,
         contagem: contagem,
+        contagem_cuid: grupoContagem,
         liberado_contagem: contagem === 1, // true se contagem for 1, false para demais valores
         itens: {
           create: produtos.map(produto => ({
@@ -222,5 +226,15 @@ export class EstoqueSaidasRepository {
     const rows = await this.oq.query<ConferirEstoqueResponseDto>(outerSql, {}, { timeout: 30_000 });
     
     return rows.length > 0 ? rows[0] : null;
+  }
+
+  async updateLiberadoContagem(contagemId: string, liberado: boolean) {
+    // Atualiza somente o campo 'liberado_contagem' da contagem
+    const updated = await this.prisma.est_contagem.update({
+      where: { id: contagemId },
+      data: { liberado_contagem: liberado }
+    });
+
+    return updated;
   }
 }

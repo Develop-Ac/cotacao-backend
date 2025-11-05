@@ -175,6 +175,7 @@ model est_contagem {
   id                String   @id @default(cuid())
   colaborador       String   // referência ao ID do usuário
   contagem          Int      @default(1) // tipo da contagem (1, 2 ou 3)
+  contagem_cuid     String?  // identificador comum para as 3 contagens criadas juntas
   liberado_contagem Boolean  @default(false) // true quando contagem = 1, false para demais valores
   created_at        DateTime @default(now())
   
@@ -185,6 +186,7 @@ model est_contagem {
   itens       est_contagem_itens[]
   
   @@index([colaborador])
+  @@index([contagem_cuid])
 }
 
 model est_contagem_itens {
