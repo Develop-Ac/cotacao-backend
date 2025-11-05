@@ -160,13 +160,61 @@ export class EstoqueSaidasController {
     return this.service.getContagensByUsuario(idUsuario);
   }
 
+  @Get('grupo/:contagem_cuid')
+  @ApiOperation({
+    summary: 'Listar contagens de um grupo específico',
+    description: 'Retorna as 3 contagens (tipos 1, 2, 3) de um grupo específico identificado pelo contagem_cuid'
+  })
+  @ApiParam({
+    name: 'contagem_cuid',
+    description: 'Identificador único do grupo de contagens',
+    example: 'clx1234567890group',
+    type: 'string'
+  })
+  @ApiOkResponse({
+    description: 'Lista de contagens do grupo retornada com sucesso',
+    type: ContagemResponseDto,
+    isArray: true,
+    example: [
+      {
+        id: 'clx1234567890type1',
+        contagem: 1,
+        contagem_cuid: 'clx1234567890group',
+        liberado_contagem: true
+      },
+      {
+        id: 'clx1234567890type2', 
+        contagem: 2,
+        contagem_cuid: 'clx1234567890group',
+        liberado_contagem: false
+      },
+      {
+        id: 'clx1234567890type3',
+        contagem: 3, 
+        contagem_cuid: 'clx1234567890group',
+        liberado_contagem: false
+      }
+    ]
+  })
+  @ApiBadRequestResponse({
+    description: 'Grupo de contagens não encontrado',
+    example: {
+      statusCode: 400,
+      message: 'Grupo não encontrado',
+      error: 'Bad Request'
+    }
+  })
+  async getContagensByGrupo(@Param('contagem_cuid') contagemCuid: string): Promise<ContagemResponseDto[]> {
+    return this.service.getContagensByGrupo(contagemCuid);
+  }
+
   @Post()
   @ApiOperation({
-    summary: 'Criar nova contagem de estoque',
-    description: 'Registra uma nova contagem de estoque com os produtos verificados pelo colaborador'
+    summary: 'Criar novo grupo de contagens de estoque',
+    description: 'Cria automaticamente 3 contagens (tipos 1, 2, 3) com o mesmo contagem_cuid. Apenas a contagem tipo 1 inicia liberada.'
   })
   @ApiCreatedResponse({
-    description: 'Contagem criada com sucesso',
+    description: 'Contagens criadas com sucesso (retorna a contagem tipo 1)',
     type: ContagemResponseDto
   })
   @ApiBadRequestResponse({
@@ -188,29 +236,25 @@ export class EstoqueSaidasController {
     return await this.service.createContagem(createContagemDto);
   }
 
-  @Put(':id')
+  @Put('liberar')
   @ApiOperation({
-    summary: 'Atualizar campo liberado_contagem de uma contagem',
-    description: 'Atualiza o campo booleano `liberado_contagem` de uma contagem específica'
-  })
-  @ApiParam({
-    name: 'id',
-    description: 'ID da contagem a ser atualizada',
-    example: 'clx1234567890abcdef',
-    type: 'string'
+    summary: 'Liberar próxima contagem de um grupo',
+    description: 'Libera a próxima contagem de um grupo: se contagem=1 libera tipo 2, se contagem=2 libera tipo 3'
   })
   @ApiOkResponse({
-    description: 'Contagem atualizada com sucesso',
+    description: 'Contagem liberada com sucesso',
     example: {
       id: 'clx1234567890abcdef',
-      liberado_contagem: false
+      contagem_cuid: 'clx1234567890group',
+      contagem: 2,
+      liberado_contagem: true
     }
   })
   @ApiBadRequestResponse({
-    description: 'ID da contagem inválido ou dados do body inválidos',
+    description: 'Contagem não encontrada ou dados inválidos',
     example: {
       statusCode: 400,
-      message: 'Contagem não encontrada',
+      message: 'Nenhuma contagem encontrada com contagem_cuid "grupo123" e tipo 2',
       error: 'Bad Request'
     }
   })
@@ -221,8 +265,8 @@ export class EstoqueSaidasController {
       message: 'Erro interno do servidor'
     }
   })
-  async updateLiberadoContagem(@Param('id') id: string, @Body() body: UpdateLiberadoContagemDto) {
-    return this.service.updateLiberadoContagem(id, body.liberado_contagem);
+  async updateLiberadoContagem(@Body() body: UpdateLiberadoContagemDto) {
+    return this.service.updateLiberadoContagem(body.contagem_cuid, body.contagem);
   }
 
   @Put('item/:id')

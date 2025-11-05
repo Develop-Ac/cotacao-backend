@@ -18,16 +18,11 @@ export class EstoqueSaidasService {
   }
 
   async createContagem(createContagemDto: CreateContagemDto): Promise<ContagemResponseDto> {
-    const result = await this.repo.createContagem(createContagemDto);
-    if (!result.contagem_cuid) {
-      throw new Error('Contagem CUID não pode ser nulo');
-    }
-    return result as ContagemResponseDto;
+    return this.repo.createContagem(createContagemDto);
   }
 
   async getContagensByUsuario(idUsuario: string): Promise<ContagemResponseDto[]> {
-    const contagens = await this.repo.getContagensByUsuario(idUsuario);
-    return contagens.filter(contagem => contagem.contagem_cuid !== null) as ContagemResponseDto[];
+    return this.repo.getContagensByUsuario(idUsuario);
   }
 
   async updateItemConferir(itemId: string, conferir: boolean) {
@@ -38,7 +33,11 @@ export class EstoqueSaidasService {
     return this.repo.getEstoqueProduto(codProduto, empresa);
   }
 
-  async updateLiberadoContagem(contagemId: string, liberado: boolean) {
-    return this.repo.updateLiberadoContagem(contagemId, liberado);
+  async updateLiberadoContagem(contagem_cuid: string, contagem: number) {
+    return this.repo.updateLiberadoContagem(contagem_cuid, contagem);
+  }
+
+  async getContagensByGrupo(contagem_cuid: string): Promise<ContagemResponseDto[]> {
+    return this.repo.getContagensByGrupo(contagem_cuid);
   }
 }

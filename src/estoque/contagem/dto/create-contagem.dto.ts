@@ -102,15 +102,6 @@ export class CreateContagemDto {
   colaborador!: string;
 
   @ApiProperty({
-    description: 'Tipo da contagem (1, 2 ou 3)',
-    example: 1,
-    enum: [1, 2, 3]
-  })
-  @IsNumber()
-  @IsNotEmpty()
-  contagem!: number;
-
-  @ApiProperty({
     description: 'Identificador comum para agrupar as 3 contagens criadas simultaneamente (se não informado, será gerado automaticamente)',
     example: 'clx1234567890group',
     required: false

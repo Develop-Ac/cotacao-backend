@@ -85,7 +85,7 @@ export class EstoqueSaidasRepository {
   }
 
   async createContagem(createContagemDto: CreateContagemDto) {
-    const { colaborador: nomeColaborador, contagem, produtos, contagem_cuid } = createContagemDto;
+    const { colaborador: nomeColaborador, produtos, contagem_cuid } = createContagemDto;
 
     // Buscar o usuário pelo nome para obter o ID
     const usuario = await this.prisma.sis_usuarios.findFirst({
@@ -99,45 +99,57 @@ export class EstoqueSaidasRepository {
       throw new BadRequestException(`Colaborador com nome "${nomeColaborador}" não encontrado`);
     }
 
-    // Gera um CUID se não foi fornecido
+    // Gera um CUID único para o grupo se não foi fornecido
     const grupoContagem = contagem_cuid || crypto.randomUUID();
 
-    // Criar a contagem com os itens em uma transação
-    const contagemResult = await this.prisma.est_contagem.create({
-      data: {
-        colaborador: usuario.id,
-        contagem: contagem,
-        contagem_cuid: grupoContagem,
-        liberado_contagem: contagem === 1, // true se contagem for 1, false para demais valores
-        itens: {
-          create: produtos.map(produto => ({
-            data: new Date(produto.DATA),
-            cod_produto: produto.COD_PRODUTO,
-            desc_produto: produto.DESC_PRODUTO,
-            mar_descricao: produto.MAR_DESCRICAO || null,
-            ref_fabricante: produto.REF_FABRICANTE || null,
-            ref_fornecedor: produto.REF_FORNECEDOR || null,
-            localizacao: produto.LOCALIZACAO || null,
-            unidade: produto.UNIDADE || null,
-            qtde_saida: produto.QTDE_SAIDA,
-            estoque: produto.ESTOQUE,
-            reserva: produto.RESERVA
-          }))
-        }
-      },
-      include: {
-        usuario: {
-          select: {
-            id: true,
-            nome: true,
-            codigo: true
+    // Criar as 3 contagens (tipos 1, 2, 3) em uma transação
+    const contagensResult = await this.prisma.$transaction(async (tx) => {
+      const contagens: any[] = [];
+
+      // Criar contagens tipo 1, 2 e 3
+      for (let tipoContagem = 1; tipoContagem <= 3; tipoContagem++) {
+        const contagem = await tx.est_contagem.create({
+          data: {
+            colaborador: usuario.id,
+            contagem: tipoContagem,
+            contagem_cuid: grupoContagem,
+            liberado_contagem: tipoContagem === 1, // Apenas tipo 1 inicia liberada
+            itens: {
+              create: produtos.map(produto => ({
+                data: new Date(produto.DATA),
+                cod_produto: produto.COD_PRODUTO,
+                desc_produto: produto.DESC_PRODUTO,
+                mar_descricao: produto.MAR_DESCRICAO || null,
+                ref_fabricante: produto.REF_FABRICANTE || null,
+                ref_fornecedor: produto.REF_FORNECEDOR || null,
+                localizacao: produto.LOCALIZACAO || null,
+                unidade: produto.UNIDADE || null,
+                qtde_saida: produto.QTDE_SAIDA,
+                estoque: produto.ESTOQUE,
+                reserva: produto.RESERVA
+              }))
+            }
+          },
+          include: {
+            usuario: {
+              select: {
+                id: true,
+                nome: true,
+                codigo: true
+              }
+            },
+            itens: true
           }
-        },
-        itens: true
+        });
+
+        contagens.push(contagem);
       }
+
+      return contagens;
     });
 
-    return contagemResult;
+    // Retorna apenas a primeira contagem (tipo 1) para manter compatibilidade
+    return contagensResult[0];
   }
 
   async getContagensByUsuario(idUsuario: string) {
@@ -228,13 +240,61 @@ export class EstoqueSaidasRepository {
     return rows.length > 0 ? rows[0] : null;
   }
 
-  async updateLiberadoContagem(contagemId: string, liberado: boolean) {
-    // Atualiza somente o campo 'liberado_contagem' da contagem
-    const updated = await this.prisma.est_contagem.update({
-      where: { id: contagemId },
-      data: { liberado_contagem: liberado }
+  async updateLiberadoContagem(contagem_cuid: string, contagem: number) {
+    // Define qual contagem deve ser liberada baseada na lógica:
+    // Se contagem = 1, libera contagem tipo 2
+    // Se contagem = 2, libera contagem tipo 3
+    const contagemParaLiberar = contagem === 1 ? 2 : 3;
+
+    // Busca e atualiza a contagem específica
+    const updated = await this.prisma.est_contagem.updateMany({
+      where: { 
+        contagem_cuid: contagem_cuid,
+        contagem: contagemParaLiberar
+      },
+      data: { liberado_contagem: true }
     });
 
-    return updated;
+    if (updated.count === 0) {
+      throw new BadRequestException(`Nenhuma contagem encontrada com contagem_cuid "${contagem_cuid}" e tipo ${contagemParaLiberar}`);
+    }
+
+    // Retorna a contagem atualizada para confirmação
+    const contagemAtualizada = await this.prisma.est_contagem.findFirst({
+      where: {
+        contagem_cuid: contagem_cuid,
+        contagem: contagemParaLiberar
+      }
+    });
+
+    return contagemAtualizada;
+  }
+
+  async getContagensByGrupo(contagem_cuid: string) {
+    // Buscar todas as contagens de um grupo específico
+    const contagens = await this.prisma.est_contagem.findMany({
+      where: {
+        contagem_cuid: contagem_cuid
+      },
+      include: {
+        usuario: {
+          select: {
+            id: true,
+            nome: true,
+            codigo: true
+          }
+        },
+        itens: {
+          orderBy: {
+            cod_produto: 'asc'
+          }
+        }
+      },
+      orderBy: {
+        contagem: 'asc' // Ordena por tipo: 1, 2, 3
+      }
+    });
+
+    return contagens;
   }
 }
