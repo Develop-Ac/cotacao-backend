@@ -103,6 +103,7 @@ export class EstoqueSaidasRepository {
       data: {
         colaborador: usuario.id,
         contagem: contagem,
+        liberado_contagem: contagem === 1, // true se contagem for 1, false para demais valores
         itens: {
           create: produtos.map(produto => ({
             data: new Date(produto.DATA),

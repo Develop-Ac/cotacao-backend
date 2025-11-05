@@ -21,6 +21,12 @@ export class ContagemResponseDto {
   contagem!: number;
 
   @ApiProperty({
+    description: 'Indica se a contagem está liberada (true quando contagem = 1, false para demais valores)',
+    example: true
+  })
+  liberado_contagem!: boolean;
+
+  @ApiProperty({
     description: 'Data de criação da contagem',
     example: '2025-11-04T14:30:00.000Z'
   })

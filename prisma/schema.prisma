@@ -172,10 +172,11 @@ model com_pedido_itens {
 }
 
 model est_contagem {
-  id          String   @id @default(cuid())
-  colaborador String   // referência ao ID do usuário
-  contagem    Int      @default(1) // tipo da contagem (1, 2 ou 3)
-  created_at  DateTime @default(now())
+  id                String   @id @default(cuid())
+  colaborador       String   // referência ao ID do usuário
+  contagem          Int      @default(1) // tipo da contagem (1, 2 ou 3)
+  liberado_contagem Boolean  @default(false) // true quando contagem = 1, false para demais valores
+  created_at        DateTime @default(now())
   
   // relação com usuário
   usuario     sis_usuarios @relation(fields: [colaborador], references: [id])
