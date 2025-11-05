@@ -109,6 +109,7 @@ export class EstoqueSaidasController {
         id: 'clx1234567890abcdef',
         colaborador: 'clx0987654321fedcba',
         contagem: 1,
+        liberado_contagem: true,
         created_at: '2025-11-04T14:30:00.000Z',
         usuario: {
           id: 'clx0987654321fedcba',
