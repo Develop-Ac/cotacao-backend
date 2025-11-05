@@ -106,7 +106,7 @@ export class EstoqueSaidasRepository {
     const contagensResult = await this.prisma.$transaction(async (tx) => {
       const contagens: any[] = [];
 
-      // Criar contagens tipo 1, 2 e 3
+      // Criar contagens tipo 1, 2 e 3 (SEM duplicar os itens)
       for (let tipoContagem = 1; tipoContagem <= 3; tipoContagem++) {
         const contagem = await tx.est_contagem.create({
           data: {
@@ -114,21 +114,24 @@ export class EstoqueSaidasRepository {
             contagem: tipoContagem,
             contagem_cuid: grupoContagem,
             liberado_contagem: tipoContagem === 1, // Apenas tipo 1 inicia liberada
-            itens: {
-              create: produtos.map(produto => ({
-                data: new Date(produto.DATA),
-                cod_produto: produto.COD_PRODUTO,
-                desc_produto: produto.DESC_PRODUTO,
-                mar_descricao: produto.MAR_DESCRICAO || null,
-                ref_fabricante: produto.REF_FABRICANTE || null,
-                ref_fornecedor: produto.REF_FORNECEDOR || null,
-                localizacao: produto.LOCALIZACAO || null,
-                unidade: produto.UNIDADE || null,
-                qtde_saida: produto.QTDE_SAIDA,
-                estoque: produto.ESTOQUE,
-                reserva: produto.RESERVA
-              }))
-            }
+            // Só adiciona os itens na primeira contagem (tipo 1)
+            ...(tipoContagem === 1 && {
+              itens: {
+                create: produtos.map(produto => ({
+                  data: new Date(produto.DATA),
+                  cod_produto: produto.COD_PRODUTO,
+                  desc_produto: produto.DESC_PRODUTO,
+                  mar_descricao: produto.MAR_DESCRICAO || null,
+                  ref_fabricante: produto.REF_FABRICANTE || null,
+                  ref_fornecedor: produto.REF_FORNECEDOR || null,
+                  localizacao: produto.LOCALIZACAO || null,
+                  unidade: produto.UNIDADE || null,
+                  qtde_saida: produto.QTDE_SAIDA,
+                  estoque: produto.ESTOQUE,
+                  reserva: produto.RESERVA
+                }))
+              }
+            })
           },
           include: {
             usuario: {
@@ -148,7 +151,7 @@ export class EstoqueSaidasRepository {
       return contagens;
     });
 
-    // Retorna apenas a primeira contagem (tipo 1) para manter compatibilidade
+    // Retorna a primeira contagem (tipo 1) que contém os itens
     return contagensResult[0];
   }
 
