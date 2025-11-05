@@ -3,6 +3,7 @@ import { OpenQueryService } from '../../shared/database/openquery/openquery.serv
 import { EstoqueSaidaRow } from './contagem.types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateContagemDto } from './dto/create-contagem.dto';
+import { ConferirEstoqueResponseDto } from './dto/conferir-estoque-response.dto';
 
 /**
  * Responsável por montar o T-SQL dinâmico com OPENQUERY(CONSULTA, '...').
@@ -173,5 +174,53 @@ export class EstoqueSaidasRepository {
     });
 
     return contagens;
+  }
+
+  async updateItemConferir(itemId: string, conferir: boolean) {
+    // Atualiza somente o campo 'conferir' do item de contagem
+    const updated = await this.prisma.est_contagem_itens.update({
+      where: { id: itemId },
+      data: { conferir }
+    });
+
+    return updated;
+  }
+
+  async getEstoqueProduto(codProduto: number, empresa: string = '3'): Promise<ConferirEstoqueResponseDto | null> {
+    // Sanitização adicional
+    if (!/^\d+$/.test(empresa)) {
+      throw new BadRequestException('Empresa inválida');
+    }
+
+    // Monta o SQL que será passado DENTRO do OPENQUERY (dialeto Firebird)
+    const innerSql = [
+      'SELECT',
+      '    PRO.pro_codigo,',
+      '    MAX(PRO.estoque_disponivel) AS ESTOQUE',
+      'FROM lanctos_estoque EST',
+      'JOIN PRODUTOS PRO',
+      '    ON (EST.pro_codigo = PRO.pro_codigo)',
+      '    AND (EST.empresa = PRO.empresa)',
+      'JOIN MARCAS MC',
+      '    ON (MC.EMPRESA = PRO.EMPRESA)',
+      '    AND (MC.MAR_CODIGO = PRO.MAR_CODIGO)',
+      `WHERE EST.empresa = '${empresa}'`,
+      `    AND PRO.pro_codigo = ${codProduto}`,
+      'GROUP BY PRO.pro_codigo'
+    ].join('\n');
+
+    // Escapa aspas simples para T-SQL
+    const innerEscaped = innerSql.replace(/'/g, "''");
+
+    const outerSql = `
+      /* conferir-estoque OPENQUERY */
+      SELECT *
+      FROM OPENQUERY(CONSULTA, '${innerEscaped}');
+    `;
+
+    // Executa via .query para retornar recordset
+    const rows = await this.oq.query<ConferirEstoqueResponseDto>(outerSql, {}, { timeout: 30_000 });
+    
+    return rows.length > 0 ? rows[0] : null;
   }
 }

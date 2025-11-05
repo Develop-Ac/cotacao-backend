@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Param } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Param, Put, BadRequestException } from '@nestjs/common';
 import { 
   ApiTags, 
   ApiOperation, 
@@ -16,9 +16,11 @@ import { EstoqueSaidaRow } from './contagem.types';
 import { EstoqueSaidaResponseDto } from './dto/estoque-saida-response.dto';
 import { CreateContagemDto } from './dto/create-contagem.dto';
 import { ContagemResponseDto } from './dto/contagem-response.dto';
+import { UpdateConferirDto } from './dto/update-conferir.dto';
+import { ConferirEstoqueResponseDto } from './dto/conferir-estoque-response.dto';
 
 @ApiTags('Estoque')
-@ApiExtraModels(GetSaidasQueryDto, EstoqueSaidaResponseDto, CreateContagemDto, ContagemResponseDto)
+@ApiExtraModels(GetSaidasQueryDto, EstoqueSaidaResponseDto, CreateContagemDto, ContagemResponseDto, UpdateConferirDto, ConferirEstoqueResponseDto)
 @Controller('contagem')
 export class EstoqueSaidasController {
   constructor(private readonly service: EstoqueSaidasService) {}
@@ -130,7 +132,8 @@ export class EstoqueSaidasController {
             unidade: 'UN',
             qtde_saida: 1,
             estoque: 8,
-            reserva: 2
+            reserva: 2,
+            conferir: true
           }
         ]
       }
@@ -181,5 +184,94 @@ export class EstoqueSaidasController {
   })
   async createContagem(@Body() createContagemDto: CreateContagemDto): Promise<ContagemResponseDto> {
     return await this.service.createContagem(createContagemDto);
+  }
+
+  @Put('item/:id')
+  @ApiOperation({
+    summary: 'Atualizar campo conferir de um item de contagem',
+    description: 'Atualiza o campo booleano `conferir` de um item específico de contagem'
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID do item de contagem a ser atualizado',
+    example: 'clx1111222233334444',
+    type: 'string'
+  })
+  @ApiOkResponse({
+    description: 'Item atualizado com sucesso',
+    example: {
+      id: 'clx1111222233334444',
+      conferir: true
+    }
+  })
+  @ApiBadRequestResponse({
+    description: 'ID do item inválido ou dados do body inválidos',
+    example: {
+      statusCode: 400,
+      message: 'Item não encontrado',
+      error: 'Bad Request'
+    }
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Erro interno do servidor',
+    example: {
+      statusCode: 500,
+      message: 'Erro interno do servidor'
+    }
+  })
+  async updateItemConferir(@Param('id') id: string, @Body() body: UpdateConferirDto) {
+    return this.service.updateItemConferir(id, body.conferir);
+  }
+
+  @Get('conferir/:cod_produto')
+  @ApiOperation({
+    summary: 'Consultar estoque de um produto específico',
+    description: 'Retorna o estoque disponível de um produto usando consulta OPENQUERY ao sistema ERP'
+  })
+  @ApiParam({
+    name: 'cod_produto',
+    description: 'Código do produto a ser consultado',
+    example: '23251',
+    type: 'number'
+  })
+  @ApiQuery({
+    name: 'empresa',
+    description: 'Código da empresa',
+    example: '3',
+    required: false,
+    type: 'string'
+  })
+  @ApiOkResponse({
+    description: 'Estoque do produto retornado com sucesso',
+    type: ConferirEstoqueResponseDto,
+    example: {
+      pro_codigo: 23251,
+      ESTOQUE: 15
+    }
+  })
+  @ApiBadRequestResponse({
+    description: 'Código do produto inválido ou empresa inválida',
+    example: {
+      statusCode: 400,
+      message: 'Empresa inválida',
+      error: 'Bad Request'
+    }
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Erro interno do servidor',
+    example: {
+      statusCode: 500,
+      message: 'Erro interno do servidor'
+    }
+  })
+  async getEstoqueProduto(
+    @Param('cod_produto') codProduto: string, 
+    @Query('empresa') empresa?: string
+  ): Promise<ConferirEstoqueResponseDto | null> {
+    const codProdutoNum = parseInt(codProduto, 10);
+    if (isNaN(codProdutoNum)) {
+      throw new BadRequestException('Código do produto deve ser um número válido');
+    }
+    return this.service.getEstoqueProduto(codProdutoNum, empresa);
   }
 }

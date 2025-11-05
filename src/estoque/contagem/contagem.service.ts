@@ -3,6 +3,7 @@ import { EstoqueSaidasRepository } from './contagem.repository';
 import { EstoqueSaidaRow } from './contagem.types';
 import { CreateContagemDto } from './dto/create-contagem.dto';
 import { ContagemResponseDto } from './dto/contagem-response.dto';
+import { ConferirEstoqueResponseDto } from './dto/conferir-estoque-response.dto';
 
 @Injectable()
 export class EstoqueSaidasService {
@@ -22,5 +23,13 @@ export class EstoqueSaidasService {
 
   async getContagensByUsuario(idUsuario: string): Promise<ContagemResponseDto[]> {
     return this.repo.getContagensByUsuario(idUsuario);
+  }
+
+  async updateItemConferir(itemId: string, conferir: boolean) {
+    return this.repo.updateItemConferir(itemId, conferir);
+  }
+
+  async getEstoqueProduto(codProduto: number, empresa?: string): Promise<ConferirEstoqueResponseDto | null> {
+    return this.repo.getEstoqueProduto(codProduto, empresa);
   }
 }

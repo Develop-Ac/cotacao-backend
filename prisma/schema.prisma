@@ -201,6 +201,7 @@ model est_contagem_itens {
   qtde_saida       Int
   estoque          Int
   reserva          Int
+  conferir         Boolean  @default(true)
   
   // relação com a contagem
   contagem         est_contagem @relation(fields: [contagem_id], references: [id], onDelete: Cascade)

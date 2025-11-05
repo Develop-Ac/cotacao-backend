@@ -19,7 +19,7 @@ export class ContagemResponseDto {
     enum: [1, 2, 3]
   })
   contagem!: number;
-
+  
   @ApiProperty({
     description: 'Indica se a contagem está liberada (true quando contagem = 1, false para demais valores)',
     example: true
@@ -63,6 +63,7 @@ export class ContagemResponseDto {
         qtde_saida: 1,
         estoque: 8,
         reserva: 2
+        ,conferir: true
       }
     ]
   })
@@ -80,5 +81,6 @@ export class ContagemResponseDto {
     qtde_saida: number;
     estoque: number;
     reserva: number;
+          conferir: boolean;
   }>;
 }
