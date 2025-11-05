@@ -210,11 +210,11 @@ export class EstoqueSaidasController {
 
   @Post()
   @ApiOperation({
-    summary: 'Criar novo grupo de contagens de estoque',
-    description: 'Cria 3 contagens (tipos 1, 2, 3) com o mesmo contagem_cuid. Apenas a contagem tipo 1 contém os itens e inicia liberada.'
+    summary: 'Criar nova contagem de estoque',
+    description: 'Cria uma contagem de estoque com os produtos. Use o mesmo contagem_cuid para agrupar contagens relacionadas (tipos 1, 2, 3).'
   })
   @ApiCreatedResponse({
-    description: 'Contagens criadas com sucesso (retorna a contagem tipo 1 com os itens)',
+    description: 'Contagem criada com sucesso',
     type: ContagemResponseDto
   })
   @ApiBadRequestResponse({
