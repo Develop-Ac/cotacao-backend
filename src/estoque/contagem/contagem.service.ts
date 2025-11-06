@@ -22,7 +22,14 @@ export class EstoqueSaidasService {
   }
 
   async getContagensByUsuario(idUsuario: string): Promise<ContagemResponseDto[]> {
-    return this.repo.getContagensByUsuario(idUsuario);
+    const result = await this.repo.getContagensByUsuario(idUsuario);
+    return result.map(contagem => ({
+      ...contagem,
+      itens: contagem.itens.map(item => ({
+        ...item,
+        contagem_id: item.contagem_cuid,
+      }))
+    }));
   }
 
   async updateItemConferir(itemId: string, conferir: boolean) {
@@ -38,6 +45,13 @@ export class EstoqueSaidasService {
   }
 
   async getContagensByGrupo(contagem_cuid: string): Promise<ContagemResponseDto[]> {
-    return this.repo.getContagensByGrupo(contagem_cuid);
+    const result = await this.repo.getContagensByGrupo(contagem_cuid);
+    return result.map(contagem => ({
+      ...contagem,
+      itens: contagem.itens.map(item => ({
+        ...item,
+        contagem_id: item.contagem_cuid,
+      }))
+    }));
   }
 }

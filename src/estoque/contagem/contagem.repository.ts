@@ -85,7 +85,7 @@ export class EstoqueSaidasRepository {
   }
 
   async createContagem(createContagemDto: CreateContagemDto) {
-    const { colaborador: nomeColaborador, contagem, produtos, contagem_cuid } = createContagemDto;
+    const { colaborador: nomeColaborador, contagem: tipoContagem, produtos, contagem_cuid } = createContagemDto;
 
     // Buscar o usuário pelo nome para obter o ID
     const usuario = await this.prisma.sis_usuarios.findFirst({
@@ -102,39 +102,64 @@ export class EstoqueSaidasRepository {
     // Gera um CUID único se não foi fornecido
     const grupoContagem = contagem_cuid || crypto.randomUUID();
 
-    // Criar apenas UMA contagem com os produtos
-    const contagemResult = await this.prisma.est_contagem.create({
-      data: {
-        colaborador: usuario.id,
-        contagem: contagem,
+    // Usar transação para criar contagem e itens separadamente
+    const contagemResult = await this.prisma.$transaction(async (tx) => {
+      // Criar a contagem sem itens primeiro
+      const contagem = await tx.est_contagem.create({
+        data: {
+          colaborador: usuario.id,
+        contagem: tipoContagem,
         contagem_cuid: grupoContagem,
-        liberado_contagem: contagem === 1, // true se contagem for 1, false para demais valores
-        itens: {
-          create: produtos.map(produto => ({
-            data: new Date(produto.DATA),
-            cod_produto: produto.COD_PRODUTO,
-            desc_produto: produto.DESC_PRODUTO,
-            mar_descricao: produto.MAR_DESCRICAO || null,
-            ref_fabricante: produto.REF_FABRICANTE || null,
-            ref_fornecedor: produto.REF_FORNECEDOR || null,
-            localizacao: produto.LOCALIZACAO || null,
-            unidade: produto.UNIDADE || null,
-            qtde_saida: produto.QTDE_SAIDA,
-            estoque: produto.ESTOQUE,
-            reserva: produto.RESERVA
-          }))
-        }
-      },
-      include: {
-        usuario: {
-          select: {
-            id: true,
-            nome: true,
-            codigo: true
-          }
+        liberado_contagem: tipoContagem === 1, // true se contagem for 1, false para demais valores
         },
-        itens: true
+        include: {
+          usuario: {
+            select: {
+              id: true,
+              nome: true,
+              codigo: true
+            }
+          }
+        }
+      });
+
+      // Verificar se já existem itens para este contagem_cuid
+      const itensExistentes = await tx.est_contagem_itens.findMany({
+        where: {
+          contagem_cuid: grupoContagem
+        }
+      });
+
+      let itens: any[] = [];
+
+      // Só criar itens se não existirem para este grupo
+      if (itensExistentes.length === 0) {
+        // Criar os itens associados ao contagem_cuid
+        for (const produto of produtos) {
+          const item = await tx.est_contagem_itens.create({
+            data: {
+              contagem_cuid: grupoContagem, // Agora referencia diretamente o contagem_cuid
+              data: new Date(produto.DATA),
+              cod_produto: produto.COD_PRODUTO,
+              desc_produto: produto.DESC_PRODUTO,
+              mar_descricao: produto.MAR_DESCRICAO || null,
+              ref_fabricante: produto.REF_FABRICANTE || null,
+              ref_fornecedor: produto.REF_FORNECEDOR || null,
+              localizacao: produto.LOCALIZACAO || null,
+              unidade: produto.UNIDADE || null,
+              qtde_saida: produto.QTDE_SAIDA,
+              estoque: produto.ESTOQUE,
+              reserva: produto.RESERVA
+            }
+          });
+          itens.push(item);
+        }
+      } else {
+        // Se já existem itens, buscar os existentes
+        itens = itensExistentes;
       }
+
+      return { ...contagem, itens };
     });
 
     return contagemResult;
@@ -153,7 +178,7 @@ export class EstoqueSaidasRepository {
       throw new BadRequestException(`Usuário com ID "${idUsuario}" não encontrado`);
     }
 
-    // Buscar todas as contagens do usuário com seus itens
+    // Buscar todas as contagens do usuário
     const contagens = await this.prisma.est_contagem.findMany({
       where: {
         colaborador: idUsuario
@@ -165,11 +190,6 @@ export class EstoqueSaidasRepository {
             nome: true,
             codigo: true
           }
-        },
-        itens: {
-          orderBy: {
-            cod_produto: 'asc'
-          }
         }
       },
       orderBy: {
@@ -177,7 +197,25 @@ export class EstoqueSaidasRepository {
       }
     });
 
-    return contagens;
+    // Buscar os itens separadamente usando contagem_cuid
+    const contagensComItens = await Promise.all(
+      contagens.map(async (contagem) => {
+        if (contagem.contagem_cuid) {
+          const itens = await this.prisma.est_contagem_itens.findMany({
+            where: {
+              contagem_cuid: contagem.contagem_cuid
+            },
+            orderBy: {
+              cod_produto: 'asc'
+            }
+          });
+          return { ...contagem, itens };
+        }
+        return { ...contagem, itens: [] };
+      })
+    );
+
+    return contagensComItens;
   }
 
   async updateItemConferir(itemId: string, conferir: boolean) {
@@ -271,11 +309,6 @@ export class EstoqueSaidasRepository {
             nome: true,
             codigo: true
           }
-        },
-        itens: {
-          orderBy: {
-            cod_produto: 'asc'
-          }
         }
       },
       orderBy: {
@@ -283,6 +316,22 @@ export class EstoqueSaidasRepository {
       }
     });
 
-    return contagens;
+    // Buscar os itens do grupo (compartilhados por todas as contagens)
+    const itens = await this.prisma.est_contagem_itens.findMany({
+      where: {
+        contagem_cuid: contagem_cuid
+      },
+      orderBy: {
+        cod_produto: 'asc'
+      }
+    });
+
+    // Adicionar os mesmos itens a todas as contagens do grupo
+    const contagensComItens = contagens.map(contagem => ({
+      ...contagem,
+      itens: itens
+    }));
+
+    return contagensComItens;
   }
 }
