@@ -272,7 +272,16 @@ export class EstoqueSaidasRepository {
     // Se contagem = 2, libera contagem tipo 3
     const contagemParaLiberar = contagem === 1 ? 2 : 3;
 
-    // Busca e atualiza a contagem específica
+    // Primeiro: coloca false na contagem atual (que veio do front)
+    await this.prisma.est_contagem.updateMany({
+      where: { 
+        contagem_cuid: contagem_cuid,
+        contagem: contagem
+      },
+      data: { liberado_contagem: false }
+    });
+
+    // Segundo: libera a próxima contagem (coloca true)
     const updated = await this.prisma.est_contagem.updateMany({
       where: { 
         contagem_cuid: contagem_cuid,
@@ -285,7 +294,7 @@ export class EstoqueSaidasRepository {
       throw new BadRequestException(`Nenhuma contagem encontrada com contagem_cuid "${contagem_cuid}" e tipo ${contagemParaLiberar}`);
     }
 
-    // Retorna a contagem atualizada para confirmação
+    // Retorna a contagem liberada para confirmação
     const contagemAtualizada = await this.prisma.est_contagem.findFirst({
       where: {
         contagem_cuid: contagem_cuid,
