@@ -125,4 +125,18 @@ export class CotacaoService {
 
     return { total, page, pageSize, data };
   }
+
+  async findByPedidoCotacao(pedidoCotacao: number) {
+    const cotacao = await this.repo.findByPedidoCotacao(pedidoCotacao);
+    
+    if (!cotacao) {
+      throw new NotFoundException(`Cotação com pedido_cotacao ${pedidoCotacao} não encontrada`);
+    }
+    
+    return cotacao;
+  }
+
+  async delete(pedidoCotacao: number) {
+    return this.repo.delete(pedidoCotacao);
+  }
 }

@@ -44,6 +44,8 @@ export class EstoqueSaidasRepository {
       '    PRO.ref_FORNECEDOR,',
       '    PRO.localizacao AS LOCALIZACAO,',
       '    PRO.unidade,',
+      '    PRO.aplicacoes,',
+      '    PRO.codigo_barras,',
       '    SUM(EST.quantidade) AS QTDE_SAIDA,',
       '    MAX(PRO.estoque_disponivel) AS ESTOQUE,',
       '    MAX(PRO.estoque_reservado) as RESERVA',
@@ -63,6 +65,8 @@ export class EstoqueSaidasRepository {
       '    PRO.pro_descricao,',
       '    PRO.localizacao,',
       '    PRO.unidade,',
+      '    PRO.aplicacoes,',
+      '    PRO.codigo_barras,',
       '    MC.mar_descricao,',
       '    PRO.ref_fabricante,',
       '    PRO.ref_FORNECEDOR',
@@ -81,6 +85,7 @@ export class EstoqueSaidasRepository {
 
     // Executa via .query para retornar recordset
     const rows = await this.oq.query<EstoqueSaidaRow>(outerSql, {}, { timeout: 300_000 });
+    
     return rows;
   }
 

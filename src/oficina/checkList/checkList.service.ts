@@ -160,4 +160,31 @@ const where: Prisma.ofi_checklistsWhereInput | undefined = search
     await this.repo.delete({ id });
     return { ok: true };
   }
+
+  // Aliases para compatibilidade com os testes
+  async findById(id: string) {
+    return this.findOne(id);
+  }
+
+  async delete(id: string) {
+    return this.remove(id);
+  }
+
+  async update(id: string, data: any) {
+    const exists = await this.repo.findUnique({ id });
+    if (!exists) throw new NotFoundException('Checklist não encontrado');
+
+    return this.repo.update({ id }, data);
+  }
+
+  async findByPlaca(placa: string) {
+    const normalizedPlaca = placa.replace(/[-\s]/g, '');
+    return this.repo.findMany({
+      where: {
+        veiculoPlaca: {
+          contains: normalizedPlaca,
+        },
+      },
+    });
+  }
 }

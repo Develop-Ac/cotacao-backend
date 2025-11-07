@@ -7,6 +7,8 @@ export type EstoqueSaidaRow = {
   ref_FORNECEDOR: string | null;
   LOCALIZACAO: string | null;
   unidade: string | null;
+  aplicacoes: string | null;
+  codigo_barras: string | null;
   QTDE_SAIDA: number;
   ESTOQUE: number | null;
   RESERVA: number | null;

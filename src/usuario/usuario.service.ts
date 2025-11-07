@@ -43,9 +43,37 @@ export class UsuarioService {
     }
   }
 
+  async findById(id: string) {
+    const usuario = await this.repo.findById(id);
+    if (!usuario) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+    return usuario;
+  }
+
+  async update(id: string, data: Partial<CreateUsuarioInput>) {
+    const updateData: any = { ...data };
+    
+    if (data.senha) {
+      updateData.senha = await bcrypt.hash(data.senha, 10);
+    }
+
+    try {
+      return await this.repo.update(id, updateData);
+    } catch (e: any) {
+      if (e?.code === 'P2025') {
+        throw new NotFoundException('Usuário não encontrado');
+      }
+      if (e?.code === 'P2002' && Array.isArray(e?.meta?.target) && e.meta.target.includes('codigo')) {
+        throw new ConflictException('Código já existe');
+      }
+      throw e;
+    }
+  }
+
   async remove(id: string) {
     try {
-      await this.repo.delete(id);
+      await this.repo.softDelete(id);
       return { message: 'Usuário removido com sucesso!' };
     } catch (e: any) {
       // P2025 = record not found

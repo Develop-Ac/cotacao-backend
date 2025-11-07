@@ -80,4 +80,26 @@ export class CotacaoRepository {
       orderBy: [{ pedido_cotacao: 'desc' }, { pro_codigo: 'asc' }],
     });
   }
+
+  findByPedidoCotacao(pedidoCotacao: number) {
+    return this.prisma.com_cotacao.findUnique({
+      where: { pedido_cotacao: pedidoCotacao },
+      include: {
+        com_cotacao_itens: true,
+      },
+    });
+  }
+
+  async delete(pedidoCotacao: number) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.com_cotacao_itens.deleteMany({ 
+        where: { pedido_cotacao: pedidoCotacao } 
+      });
+      await tx.com_cotacao.delete({ 
+        where: { pedido_cotacao: pedidoCotacao } 
+      });
+    });
+    
+    return { message: 'Cotação deletada com sucesso' };
+  }
 }

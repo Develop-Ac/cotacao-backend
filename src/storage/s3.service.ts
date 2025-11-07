@@ -108,4 +108,41 @@ export class S3Service {
     const url = await getSignedUrl(this.client, cmd, { expiresIn: expiresSeconds });
     return url;
   }
+
+  // Métodos adicionais para compatibilidade com os testes
+  async uploadFile(file: Express.Multer.File, prefix: string = ''): Promise<any> {
+    const key = `${prefix}${file.originalname}`;
+    await this.putObject(key, file.buffer, file.mimetype);
+    return {
+      Key: key,
+      Location: `${this.bucketDefault}/${key}`,
+      Bucket: this.bucketDefault,
+    };
+  }
+
+  async deleteFile(key: string, bucket = this.bucketDefault): Promise<any> {
+    const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+    const result = await this.client.send(
+      new DeleteObjectCommand({
+        Bucket: bucket,
+        Key: key,
+      }),
+    );
+    return result;
+  }
+
+  async getSignedUrl(key: string, expiresIn?: number): Promise<string> {
+    return this.getPresignedGetUrl(key, expiresIn);
+  }
+
+  async listFiles(prefix: string = '', bucket = this.bucketDefault): Promise<any[]> {
+    const { ListObjectsV2Command } = await import('@aws-sdk/client-s3');
+    const result = await this.client.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefix,
+      }),
+    );
+    return result.Contents || [];
+  }
 }

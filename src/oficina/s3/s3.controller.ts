@@ -63,7 +63,7 @@ const ALLOWED = new Set([
 
 const BUCKET = process.env.S3_BUCKET_AVARIAS || 'avarias';
 
-@ApiTags('Upload de Arquivos')
+@ApiTags('Oficina - Checklists')
 @Controller('uploads')
 export class UploadsController {
   constructor(private readonly s3: S3Service) {}
