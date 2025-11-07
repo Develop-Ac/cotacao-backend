@@ -61,6 +61,7 @@ export class LoginController {
           usuario_id: 123,
           nome: 'Giovana Custodio',
           codigo: 'USR001',
+          setor: 'TI',
         },
       },
     },

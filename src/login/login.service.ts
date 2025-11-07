@@ -34,7 +34,8 @@ export class LoginService {
       message: 'Login realizado com sucesso',
       usuario: usuario.nome,
       usuario_id: usuario.id,
-      codigo: usuario.codigo
+      codigo: usuario.codigo,
+      setor: usuario.setor,
     };
   }
 }

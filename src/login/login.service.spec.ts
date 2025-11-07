@@ -57,6 +57,7 @@ describe('LoginService', () => {
         usuario: 'JOÃO DA SILVA',
         usuario_id: 'user-123',
         codigo: 'JS001',
+        setor: 'ESTOQUE',
       };
 
       repository.findUsuarioByCodigo.mockResolvedValue(mockUsuario);
@@ -135,6 +136,7 @@ describe('LoginService', () => {
       expect(result).toHaveProperty('usuario', 'MARIA SANTOS');
       expect(result).toHaveProperty('usuario_id', 'user-456');
       expect(result).toHaveProperty('codigo', 'MS002');
+  expect(result).toHaveProperty('setor', 'VENDAS');
       expect(result).not.toHaveProperty('senha');
     });
 

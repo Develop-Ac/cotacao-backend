@@ -21,8 +21,8 @@ export class LoginResponseView {
   expires_in!: number;
 
   @ApiProperty({
-    example: { usuario_id: 123, nome: 'Giovana Custodio', codigo: 'USR001' },
+    example: { usuario_id: 123, nome: 'Giovana Custodio', codigo: 'USR001', setor: 'TI' },
   })
-  user!: { usuario_id: number; nome: string; codigo: string };
+  user!: { usuario_id: number; nome: string; codigo: string; setor?: string };
 }
 
