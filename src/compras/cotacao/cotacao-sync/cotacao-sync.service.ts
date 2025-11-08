@@ -47,11 +47,30 @@ export class CotacaoSyncService {
 
   private parseMoney(label: string, v: string | null): number | null {
     if (v == null) return null;
-    const normalized = v.trim().replace(/\./g, '').replace(',', '.');
-    if (normalized === '') return null;
-    const n = Number(normalized);
+    const trimmed = v.trim();
+    if (trimmed === '') return null;
+    
+    // Se contém vírgula, trata como formato brasileiro (1.234,56)
+    if (trimmed.includes(',')) {
+      const normalized = trimmed.replace(/\./g, '').replace(',', '.');
+      const n = Number(normalized);
+      if (!Number.isFinite(n) || n < 0) throw new HttpException(`${label} inválido: ${v}`, 400);
+      return n;
+    }
+    
+    // Se não contém vírgula, trata como formato americano (1234.56)
+    const n = Number(trimmed);
     if (!Number.isFinite(n) || n < 0) throw new HttpException(`${label} inválido: ${v}`, 400);
     return n;
+  }
+
+  /**
+   * Formata valores monetários para garantir a precisão decimal correta
+   */
+  private formatMoneyValue(value: number | null): number | null {
+    if (value === null || value === undefined) return null;
+    // Converte para número e garante 2 casas decimais de precisão
+    return Number(Number(value).toFixed(2));
   }
 
   /**
@@ -220,10 +239,12 @@ export class CotacaoSyncService {
         };
         return {
           ...it,
-          // 🔁 retornando custo_fabrica/custo_medio/estoque_disponivel do ERP
-          custo_fabrica: extra.custo_fabrica,
-          custo_medio: extra.custo_medio,
-          estoque_disponivel: extra.estoque_disponivel,
+          // Garantir que valor_unitario seja retornado como número decimal formatado
+          valor_unitario: this.formatMoneyValue(it.valor_unitario),
+          // 🔁 retornando custo_fabrica/custo_medio/estoque_disponivel do ERP formatados
+          custo_fabrica: this.formatMoneyValue(extra.custo_fabrica),
+          custo_medio: this.formatMoneyValue(extra.custo_medio),
+          estoque_disponivel: this.formatMoneyValue(extra.estoque_disponivel),
         };
       }),
     }));
