@@ -17,6 +17,7 @@ describe('EstoqueSaidasService', () => {
     getEstoqueProduto: jest.fn(),
     updateLiberadoContagem: jest.fn(),
     getContagensByGrupo: jest.fn(),
+    getAllContagens: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -364,6 +365,95 @@ describe('EstoqueSaidasService', () => {
       expect(repository.getContagensByGrupo).toHaveBeenCalledWith(contagem_cuid);
       expect(result).toHaveLength(1);
       expect(result[0].itens[0]).toHaveProperty('contagem_id', 'grupo-123');
+    });
+  });
+
+  describe('getAllContagens', () => {
+    it('deve retornar todas as contagens com itens mapeados', async () => {
+      const mockContagens = [
+        {
+          id: 'contagem-123',
+          colaborador: 'user-123',
+          contagem: 1,
+          contagem_cuid: 'grupo-456',
+          liberado_contagem: true,
+          created_at: new Date('2024-01-15T10:00:00Z'),
+          usuario: {
+            id: 'user-123',
+            nome: 'JOÃO DA SILVA',
+            codigo: 'JS001',
+          },
+          itens: [
+            {
+              id: 'item-789',
+              contagem_cuid: 'grupo-456',
+              data: new Date('2024-01-15T00:00:00Z'),
+              cod_produto: 12345,
+              desc_produto: 'PRODUTO TESTE',
+              mar_descricao: 'MARCA TESTE',
+              ref_fabricante: 'REF123',
+              ref_fornecedor: 'FORN123',
+              localizacao: 'A01-B02',
+              unidade: 'UN',
+              qtde_saida: 5,
+              estoque: 100,
+              reserva: 10,
+              conferir: false,
+            },
+          ],
+        },
+        {
+          id: 'contagem-456',
+          colaborador: 'user-456',
+          contagem: 2,
+          contagem_cuid: 'grupo-789',
+          liberado_contagem: false,
+          created_at: new Date('2024-01-16T10:00:00Z'),
+          usuario: {
+            id: 'user-456',
+            nome: 'MARIA SANTOS',
+            codigo: 'MS002',
+          },
+          itens: [
+            {
+              id: 'item-101',
+              contagem_cuid: 'grupo-789',
+              data: new Date('2024-01-16T00:00:00Z'),
+              cod_produto: 67890,
+              desc_produto: 'OUTRO PRODUTO TESTE',
+              mar_descricao: 'OUTRA MARCA',
+              ref_fabricante: 'REF456',
+              ref_fornecedor: 'FORN456',
+              localizacao: 'B02-C03',
+              unidade: 'PC',
+              qtde_saida: 3,
+              estoque: 50,
+              reserva: 5,
+              conferir: true,
+            },
+          ],
+        },
+      ];
+
+      repository.getAllContagens.mockResolvedValue(mockContagens);
+
+      const result = await service.getAllContagens();
+
+      expect(repository.getAllContagens).toHaveBeenCalledWith();
+      expect(result).toHaveLength(2);
+      expect(result[0].itens[0]).toHaveProperty('contagem_id', 'grupo-456');
+      expect(result[1].itens[0]).toHaveProperty('contagem_id', 'grupo-789');
+      expect(result[0].usuario.nome).toBe('JOÃO DA SILVA');
+      expect(result[1].usuario.nome).toBe('MARIA SANTOS');
+    });
+
+    it('deve retornar array vazio quando não há contagens', async () => {
+      repository.getAllContagens.mockResolvedValue([]);
+
+      const result = await service.getAllContagens();
+
+      expect(repository.getAllContagens).toHaveBeenCalledWith();
+      expect(result).toEqual([]);
     });
   });
 });

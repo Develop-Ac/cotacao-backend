@@ -54,4 +54,15 @@ export class EstoqueSaidasService {
       }))
     }));
   }
+
+  async getAllContagens(): Promise<ContagemResponseDto[]> {
+    const result = await this.repo.getAllContagens();
+    return result.map(contagem => ({
+      ...contagem,
+      itens: contagem.itens.map(item => ({
+        ...item,
+        contagem_id: item.contagem_cuid,
+      }))
+    }));
+  }
 }

@@ -348,4 +348,42 @@ export class EstoqueSaidasRepository {
 
     return contagensComItens;
   }
+
+  async getAllContagens() {
+    // Buscar todas as contagens com informações do usuário
+    const contagens = await this.prisma.est_contagem.findMany({
+      include: {
+        usuario: {
+          select: {
+            id: true,
+            nome: true,
+            codigo: true
+          }
+        }
+      },
+      orderBy: {
+        created_at: 'desc'
+      }
+    });
+
+    // Buscar os itens separadamente usando contagem_cuid
+    const contagensComItens = await Promise.all(
+      contagens.map(async (contagem) => {
+        if (contagem.contagem_cuid) {
+          const itens = await this.prisma.est_contagem_itens.findMany({
+            where: {
+              contagem_cuid: contagem.contagem_cuid
+            },
+            orderBy: {
+              cod_produto: 'asc'
+            }
+          });
+          return { ...contagem, itens };
+        }
+        return { ...contagem, itens: [] };
+      })
+    );
+
+    return contagensComItens;
+  }
 }

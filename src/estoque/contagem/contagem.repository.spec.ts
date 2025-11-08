@@ -603,4 +603,164 @@ describe('EstoqueSaidasRepository', () => {
       expect(result[1].itens).toEqual(mockItens);
     });
   });
+
+  describe('getAllContagens', () => {
+    it('deve retornar todas as contagens com itens', async () => {
+      const mockContagens = [
+        {
+          id: 'contagem-123',
+          colaborador: 'user-123',
+          contagem: 1,
+          contagem_cuid: 'grupo-456',
+          liberado_contagem: true,
+          created_at: new Date('2024-01-15T10:00:00Z'),
+          usuario: {
+            id: 'user-123',
+            nome: 'JOÃO DA SILVA',
+            codigo: 'JS001',
+          },
+        },
+        {
+          id: 'contagem-456',
+          colaborador: 'user-456',
+          contagem: 2,
+          contagem_cuid: 'grupo-789',
+          liberado_contagem: false,
+          created_at: new Date('2024-01-16T10:00:00Z'),
+          usuario: {
+            id: 'user-456',
+            nome: 'MARIA SANTOS',
+            codigo: 'MS002',
+          },
+        },
+      ];
+
+      const mockItens1 = [
+        {
+          id: 'item-789',
+          contagem_cuid: 'grupo-456',
+          data: new Date('2024-01-15T00:00:00Z'),
+          cod_produto: 12345,
+          desc_produto: 'PRODUTO TESTE',
+          mar_descricao: 'MARCA TESTE',
+          ref_fabricante: 'REF123',
+          ref_fornecedor: 'FORN123',
+          localizacao: 'A01-B02',
+          unidade: 'UN',
+          qtde_saida: 5,
+          estoque: 100,
+          reserva: 10,
+          conferir: false,
+        },
+      ];
+
+      const mockItens2 = [
+        {
+          id: 'item-101',
+          contagem_cuid: 'grupo-789',
+          data: new Date('2024-01-16T00:00:00Z'),
+          cod_produto: 67890,
+          desc_produto: 'OUTRO PRODUTO TESTE',
+          mar_descricao: 'OUTRA MARCA',
+          ref_fabricante: 'REF456',
+          ref_fornecedor: 'FORN456',
+          localizacao: 'B02-C03',
+          unidade: 'PC',
+          qtde_saida: 3,
+          estoque: 50,
+          reserva: 5,
+          conferir: true,
+        },
+      ];
+
+      prismaService.est_contagem.findMany.mockResolvedValue(mockContagens);
+      prismaService.est_contagem_itens.findMany
+        .mockResolvedValueOnce(mockItens1)
+        .mockResolvedValueOnce(mockItens2);
+
+      const result = await repository.getAllContagens();
+
+      expect(prismaService.est_contagem.findMany).toHaveBeenCalledWith({
+        include: {
+          usuario: {
+            select: {
+              id: true,
+              nome: true,
+              codigo: true,
+            },
+          },
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
+
+      expect(prismaService.est_contagem_itens.findMany).toHaveBeenCalledTimes(2);
+      expect(prismaService.est_contagem_itens.findMany).toHaveBeenNthCalledWith(1, {
+        where: { contagem_cuid: 'grupo-456' },
+        orderBy: { cod_produto: 'asc' },
+      });
+      expect(prismaService.est_contagem_itens.findMany).toHaveBeenNthCalledWith(2, {
+        where: { contagem_cuid: 'grupo-789' },
+        orderBy: { cod_produto: 'asc' },
+      });
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toHaveProperty('itens');
+      expect(result[1]).toHaveProperty('itens');
+      expect(result[0].itens).toEqual(mockItens1);
+      expect(result[1].itens).toEqual(mockItens2);
+      expect(result[0].usuario.nome).toBe('JOÃO DA SILVA');
+      expect(result[1].usuario.nome).toBe('MARIA SANTOS');
+    });
+
+    it('deve retornar array vazio quando não há contagens', async () => {
+      prismaService.est_contagem.findMany.mockResolvedValue([]);
+
+      const result = await repository.getAllContagens();
+
+      expect(prismaService.est_contagem.findMany).toHaveBeenCalledWith({
+        include: {
+          usuario: {
+            select: {
+              id: true,
+              nome: true,
+              codigo: true,
+            },
+          },
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
+
+      expect(result).toEqual([]);
+    });
+
+    it('deve retornar contagens sem itens quando contagem_cuid é null', async () => {
+      const mockContagens = [
+        {
+          id: 'contagem-123',
+          colaborador: 'user-123',
+          contagem: 1,
+          contagem_cuid: null,
+          liberado_contagem: true,
+          created_at: new Date('2024-01-15T10:00:00Z'),
+          usuario: {
+            id: 'user-123',
+            nome: 'JOÃO DA SILVA',
+            codigo: 'JS001',
+          },
+        },
+      ];
+
+      prismaService.est_contagem.findMany.mockResolvedValue(mockContagens);
+
+      const result = await repository.getAllContagens();
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toHaveProperty('itens');
+      expect(result[0].itens).toEqual([]);
+    });
+  });
 });
