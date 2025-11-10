@@ -65,9 +65,10 @@ export class ChecklistRepository {
     // Transformar itens relacionados em um formato compatível com o Prisma
     if (ofi_checklists_items) {
       filteredData.ofi_checklists_items = {
-        updateMany: ofi_checklists_items.map((item: any) => ({
+        upsert: ofi_checklists_items.map((item: any) => ({
           where: { id: item.id },
-          data: item,
+          update: { ...item },
+          create: { ...item },
         })),
       };
     }
