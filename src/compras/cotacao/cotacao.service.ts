@@ -26,6 +26,7 @@ export class CotacaoService {
       referencia: i.REFERENCIA ?? null,
       unidade: i.UNIDADE ?? null,
       quantidade: Number(i.QUANTIDADE),
+      dt_ultima_compra: i.DT_ULTIMA_COMPRA ? new Date(i.DT_ULTIMA_COMPRA) : null,
     }));
 
     await this.repo.upsertCotacaoWithItems(empresa, pedido_cotacao, itensLower);
@@ -51,6 +52,7 @@ export class CotacaoService {
       REFERENCIA: r.referencia,
       UNIDADE: r.unidade,
       QUANTIDADE: r.quantidade,
+      DT_ULTIMA_COMPRA: (r as any).dt_ultima_compra ? (r as any).dt_ultima_compra.toISOString() : null,
     }));
 
     return {
@@ -90,6 +92,7 @@ export class CotacaoService {
         REFERENCIA: string | null;
         UNIDADE: string | null;
         QUANTIDADE: number;
+        DT_ULTIMA_COMPRA: string | null;
       }>
     >();
 
@@ -107,6 +110,7 @@ export class CotacaoService {
           REFERENCIA: r.referencia,
           UNIDADE: r.unidade,
           QUANTIDADE: r.quantidade,
+          DT_ULTIMA_COMPRA: r.dt_ultima_compra ? r.dt_ultima_compra.toISOString() : null,
         });
         map.set(r.pedido_cotacao, arr);
         return map;

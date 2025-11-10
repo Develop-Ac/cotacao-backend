@@ -86,7 +86,43 @@ export class EstoqueSaidasRepository {
     // Executa via .query para retornar recordset
     const rows = await this.oq.query<EstoqueSaidaRow>(outerSql, {}, { timeout: 300_000 });
     
-    return rows;
+    const sanitizedRows = (rows ?? []).map((row, i) => {
+      let txt: string | null;
+      try {
+        txt = this.toUtf8Text((row as any).APLICACOES);
+      } catch (e) {
+        console.error('Falha ao converter APLICACOES na linha', i, row?.COD_PRODUTO, e);
+        txt = null;
+      }
+      return { ...row, APLICACOES: txt };
+    });
+
+    return sanitizedRows;
+  }
+
+  toUtf8Text(val: unknown): string | null {
+    if (val == null) return null;                 // null/undefined
+    if (typeof val === 'string') return val;      // já é string
+
+    // Buffer (Node)
+    if (Buffer.isBuffer(val)) return (val as Buffer).toString('utf-8');
+
+    // Uint8Array / ArrayBuffer
+    if (val instanceof Uint8Array) return Buffer.from(val).toString('utf-8');
+    if (val instanceof ArrayBuffer) return Buffer.from(new Uint8Array(val)).toString('utf-8');
+
+    // Objeto no formato { type: 'Buffer', data: number[] }
+    const maybe = val as any;
+    if (maybe?.type === 'Buffer' && Array.isArray(maybe?.data)) {
+      return Buffer.from(maybe.data).toString('utf-8');
+    }
+
+    // Último recurso: tente stringify seguro
+    try {
+      return String(val);
+    } catch {
+      return null;
+    }
   }
 
   async createContagem(createContagemDto: CreateContagemDto) {
@@ -152,6 +188,7 @@ export class EstoqueSaidasRepository {
               ref_fornecedor: produto.REF_FORNECEDOR || null,
               localizacao: produto.LOCALIZACAO || null,
               unidade: produto.UNIDADE || null,
+              aplicacoes: produto.APLICACOES || null,
               qtde_saida: produto.QTDE_SAIDA,
               estoque: produto.ESTOQUE,
               reserva: produto.RESERVA
@@ -385,5 +422,25 @@ export class EstoqueSaidasRepository {
     );
 
     return contagensComItens;
+  }
+
+  async createLog(createLogData: {
+    contagem_id: string;
+    usuario_id: string;
+    item_id: string;
+    estoque: number;
+    contado: number;
+  }) {
+    const log = await this.prisma.est_contagem_log.create({
+      data: {
+        contagem_id: createLogData.contagem_id,
+        usuario_id: createLogData.usuario_id,
+        item_id: createLogData.item_id,
+        estoque: createLogData.estoque,
+        contado: createLogData.contado,
+      }
+    });
+
+    return log;
   }
 }

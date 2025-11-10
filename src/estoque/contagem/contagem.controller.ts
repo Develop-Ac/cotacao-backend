@@ -19,9 +19,11 @@ import { ContagemResponseDto } from './dto/contagem-response.dto';
 import { UpdateConferirDto } from './dto/update-conferir.dto';
 import { ConferirEstoqueResponseDto } from './dto/conferir-estoque-response.dto';
 import { UpdateLiberadoContagemDto } from './dto/update-liberado-contagem.dto';
+import { CreateLogDto } from './dto/create-log.dto';
+import { LogResponseDto } from './dto/log-response.dto';
 
 @ApiTags('Estoque')
-@ApiExtraModels(GetSaidasQueryDto, EstoqueSaidaResponseDto, CreateContagemDto, ContagemResponseDto, UpdateConferirDto, ConferirEstoqueResponseDto, UpdateLiberadoContagemDto)
+@ApiExtraModels(GetSaidasQueryDto, EstoqueSaidaResponseDto, CreateContagemDto, ContagemResponseDto, UpdateConferirDto, ConferirEstoqueResponseDto, UpdateLiberadoContagemDto, CreateLogDto, LogResponseDto)
 @Controller('contagem')
 export class EstoqueSaidasController {
   constructor(private readonly service: EstoqueSaidasService) {}
@@ -66,6 +68,8 @@ export class EstoqueSaidasController {
         ref_FORNECEDOR: 'FORN789',
         LOCALIZACAO: 'A01-B02',
         unidade: 'UN',
+        APLICACOES: 'APLICAÇÃO ESPECÍFICA DO PRODUTO',
+        codigo_barras: '7891234567890',
         QTDE_SAIDA: 5,
         ESTOQUE: 100,
         RESERVA: 10
@@ -126,6 +130,7 @@ export class EstoqueSaidasController {
             ref_fornecedor: '056597',
             localizacao: 'B1002A03',
             unidade: 'UN',
+            aplicacoes: 'APLICAÇÃO ESPECÍFICA DO PRODUTO',
             qtde_saida: 1,
             estoque: 8,
             reserva: 2,
@@ -186,6 +191,7 @@ export class EstoqueSaidasController {
             ref_fornecedor: '056597',
             localizacao: 'B1002A03',
             unidade: 'UN',
+            aplicacoes: 'APLICAÇÃO ESPECÍFICA DO PRODUTO',
             qtde_saida: 1,
             estoque: 8,
             reserva: 2,
@@ -410,5 +416,42 @@ export class EstoqueSaidasController {
       throw new BadRequestException('Código do produto deve ser um número válido');
     }
     return this.service.getEstoqueProduto(codProdutoNum, empresa);
+  }
+
+  @Post('log')
+  @ApiOperation({
+    summary: 'Criar log de contagem',
+    description: 'Registra um log da contagem física realizada, comparando o estoque do sistema com a quantidade contada fisicamente'
+  })
+  @ApiCreatedResponse({
+    description: 'Log de contagem criado com sucesso',
+    type: LogResponseDto,
+    example: {
+      id: 'clx5555666677778888',
+      contagem_id: 'clx1234567890abcdef',
+      usuario_id: 'clx0987654321fedcba',
+      item_id: 'clx1111222233334444',
+      estoque: 100,
+      contado: 95,
+      created_at: '2025-11-10T13:30:00.000Z'
+    }
+  })
+  @ApiBadRequestResponse({
+    description: 'Dados inválidos fornecidos',
+    example: {
+      statusCode: 400,
+      message: ['contagem_id não deve estar vazio'],
+      error: 'Bad Request'
+    }
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Erro interno do servidor',
+    example: {
+      statusCode: 500,
+      message: 'Erro interno do servidor'
+    }
+  })
+  async createLog(@Body() createLogDto: CreateLogDto): Promise<LogResponseDto> {
+    return await this.service.createLog(createLogDto);
   }
 }

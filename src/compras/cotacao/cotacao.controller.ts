@@ -21,7 +21,7 @@ export class CotacaoController {
   @Post()
   @ApiOperation({ 
     summary: 'Cria ou atualiza cotação',
-    description: 'Cria uma nova cotação ou atualiza uma existente baseada no pedido e empresa'
+    description: 'Cria uma nova cotação ou atualiza uma existente baseada no pedido e empresa. Inclui suporte ao campo DT_ULTIMA_COMPRA para cada item.'
   })
   @ApiCreatedResponse({
     description: 'Cotação criada/atualizada com sucesso'

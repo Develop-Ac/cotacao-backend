@@ -4,6 +4,8 @@ import { EstoqueSaidaRow } from './contagem.types';
 import { CreateContagemDto } from './dto/create-contagem.dto';
 import { ContagemResponseDto } from './dto/contagem-response.dto';
 import { ConferirEstoqueResponseDto } from './dto/conferir-estoque-response.dto';
+import { CreateLogDto } from './dto/create-log.dto';
+import { LogResponseDto } from './dto/log-response.dto';
 
 @Injectable()
 export class EstoqueSaidasService {
@@ -64,5 +66,9 @@ export class EstoqueSaidasService {
         contagem_id: item.contagem_cuid,
       }))
     }));
+  }
+
+  async createLog(createLogDto: CreateLogDto): Promise<LogResponseDto> {
+    return this.repo.createLog(createLogDto);
   }
 }

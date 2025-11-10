@@ -10,6 +10,7 @@ type PedidoCotacaoRow = {
   referencia: string | null;
   unidade: string | null;
   quantidade: number | string | null;
+  dt_ultima_compra: Date | string | null;
 };
 
 type FornecedorRow = {
@@ -54,7 +55,8 @@ export class ConsultaOpenqueryRepository {
           mar.mar_descricao,
           pro.referencia,
           pro.unidade,
-          iorc.quantidade
+          iorc.quantidade,
+          pro.dt_ultima_compra
       FROM PEDIDOS_COTACOES orc
       LEFT JOIN PEDIDOS_COTACOES_ITENS iorc
              ON iorc.empresa = orc.empresa

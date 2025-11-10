@@ -82,6 +82,8 @@ describe('EstoqueSaidasRepository', () => {
           ref_FORNECEDOR: 'FORN789',
           LOCALIZACAO: 'A01-B02',
           unidade: 'UN',
+          APLICACOES: null,
+          codigo_barras: null,
           QTDE_SAIDA: 5,
           ESTOQUE: 100,
           RESERVA: 10,
@@ -184,11 +186,11 @@ describe('EstoqueSaidasRepository', () => {
         conferir: false,
       };
 
-      prismaService.sis_usuarios.findFirst.mockResolvedValue(mockUsuario);
-      prismaService.est_contagem_itens.findMany.mockResolvedValue([]);
+      mockPrismaService.sis_usuarios.findFirst.mockResolvedValue(mockUsuario);
+      mockPrismaService.est_contagem_itens.findMany.mockResolvedValue([]);
 
       // Mock da transação
-      prismaService.$transaction.mockImplementation(async (callback) => {
+      mockPrismaService.$transaction.mockImplementation(async (callback) => {
         const txMock = {
           est_contagem: {
             create: jest.fn().mockResolvedValue(mockContagem),
@@ -197,8 +199,8 @@ describe('EstoqueSaidasRepository', () => {
             findMany: jest.fn().mockResolvedValue([]),
             create: jest.fn().mockResolvedValue(mockItem),
           },
-        };
-        return callback(txMock);
+        } as any;
+        return callback(txMock as any);
       });
 
       const result = await repository.createContagem(createContagemDto);
@@ -222,7 +224,7 @@ describe('EstoqueSaidasRepository', () => {
         produtos: [],
       };
 
-      prismaService.sis_usuarios.findFirst.mockResolvedValue(null);
+      mockPrismaService.sis_usuarios.findFirst.mockResolvedValue(null);
 
       await expect(repository.createContagem(createContagemDto)).rejects.toThrow(
         'Colaborador com nome "USUÁRIO INEXISTENTE" não encontrado',
@@ -259,9 +261,9 @@ describe('EstoqueSaidasRepository', () => {
         },
       };
 
-      prismaService.sis_usuarios.findFirst.mockResolvedValue(mockUsuario);
+      mockPrismaService.sis_usuarios.findFirst.mockResolvedValue(mockUsuario);
 
-      prismaService.$transaction.mockImplementation(async (callback) => {
+      mockPrismaService.$transaction.mockImplementation(async (callback) => {
         const txMock = {
           est_contagem: {
             create: jest.fn().mockResolvedValue(mockContagem),
@@ -269,8 +271,8 @@ describe('EstoqueSaidasRepository', () => {
           est_contagem_itens: {
             findMany: jest.fn().mockResolvedValue([]),
           },
-        };
-        return callback(txMock);
+        } as any;
+        return callback(txMock as any);
       });
 
       const result = await repository.createContagem(createContagemDto);
@@ -327,16 +329,16 @@ describe('EstoqueSaidasRepository', () => {
         },
       ];
 
-      prismaService.sis_usuarios.findUnique.mockResolvedValue(mockUsuario);
-      prismaService.est_contagem.findMany.mockResolvedValue(mockContagens);
-      prismaService.est_contagem_itens.findMany.mockResolvedValue(mockItens);
+      mockPrismaService.sis_usuarios.findUnique.mockResolvedValue(mockUsuario);
+      mockPrismaService.est_contagem.findMany.mockResolvedValue(mockContagens);
+      mockPrismaService.est_contagem_itens.findMany.mockResolvedValue(mockItens);
 
       const result = await repository.getContagensByUsuario(idUsuario);
 
-      expect(prismaService.sis_usuarios.findUnique).toHaveBeenCalledWith({
+      expect(mockPrismaService.sis_usuarios.findUnique).toHaveBeenCalledWith({
         where: { id: idUsuario, trash: 0 },
       });
-      expect(prismaService.est_contagem.findMany).toHaveBeenCalledWith({
+      expect(mockPrismaService.est_contagem.findMany).toHaveBeenCalledWith({
         where: { colaborador: idUsuario },
         include: {
           usuario: {
@@ -357,7 +359,7 @@ describe('EstoqueSaidasRepository', () => {
     it('deve rejeitar se usuário não encontrado', async () => {
       const idUsuario = 'user-inexistente';
 
-      prismaService.sis_usuarios.findUnique.mockResolvedValue(null);
+      mockPrismaService.sis_usuarios.findUnique.mockResolvedValue(null);
 
       await expect(repository.getContagensByUsuario(idUsuario)).rejects.toThrow(
         'Usuário com ID "user-inexistente" não encontrado',
@@ -378,11 +380,11 @@ describe('EstoqueSaidasRepository', () => {
         desc_produto: 'PRODUTO TESTE',
       };
 
-      prismaService.est_contagem_itens.update.mockResolvedValue(mockUpdatedItem);
+      mockPrismaService.est_contagem_itens.update.mockResolvedValue(mockUpdatedItem);
 
       const result = await repository.updateItemConferir(itemId, conferir);
 
-      expect(prismaService.est_contagem_itens.update).toHaveBeenCalledWith({
+      expect(mockPrismaService.est_contagem_itens.update).toHaveBeenCalledWith({
         where: { id: itemId },
         data: { conferir },
       });
@@ -447,22 +449,22 @@ describe('EstoqueSaidasRepository', () => {
         created_at: new Date('2024-01-15T10:00:00Z'),
       };
 
-      prismaService.est_contagem.updateMany
+      mockPrismaService.est_contagem.updateMany
         .mockResolvedValueOnce({ count: 1 }) // Para desabilitar contagem atual
         .mockResolvedValueOnce({ count: 1 }); // Para liberar próxima contagem
 
-      prismaService.est_contagem.findFirst.mockResolvedValue(mockContagemLiberada);
+      mockPrismaService.est_contagem.findFirst.mockResolvedValue(mockContagemLiberada);
 
       const result = await repository.updateLiberadoContagem(contagem_cuid, contagem);
 
       // Primeira chamada: desabilita contagem tipo 1
-      expect(prismaService.est_contagem.updateMany).toHaveBeenNthCalledWith(1, {
+      expect(mockPrismaService.est_contagem.updateMany).toHaveBeenNthCalledWith(1, {
         where: { contagem_cuid, contagem: 1 },
         data: { liberado_contagem: false },
       });
 
       // Segunda chamada: libera contagem tipo 2
-      expect(prismaService.est_contagem.updateMany).toHaveBeenNthCalledWith(2, {
+      expect(mockPrismaService.est_contagem.updateMany).toHaveBeenNthCalledWith(2, {
         where: { contagem_cuid, contagem: 2 },
         data: { liberado_contagem: true },
       });
@@ -483,22 +485,22 @@ describe('EstoqueSaidasRepository', () => {
         created_at: new Date('2024-01-15T10:00:00Z'),
       };
 
-      prismaService.est_contagem.updateMany
+      mockPrismaService.est_contagem.updateMany
         .mockResolvedValueOnce({ count: 1 }) // Para desabilitar contagem atual
         .mockResolvedValueOnce({ count: 1 }); // Para liberar próxima contagem
 
-      prismaService.est_contagem.findFirst.mockResolvedValue(mockContagemLiberada);
+      mockPrismaService.est_contagem.findFirst.mockResolvedValue(mockContagemLiberada);
 
       const result = await repository.updateLiberadoContagem(contagem_cuid, contagem);
 
       // Primeira chamada: desabilita contagem tipo 2
-      expect(prismaService.est_contagem.updateMany).toHaveBeenNthCalledWith(1, {
+      expect(mockPrismaService.est_contagem.updateMany).toHaveBeenNthCalledWith(1, {
         where: { contagem_cuid, contagem: 2 },
         data: { liberado_contagem: false },
       });
 
       // Segunda chamada: libera contagem tipo 3
-      expect(prismaService.est_contagem.updateMany).toHaveBeenNthCalledWith(2, {
+      expect(mockPrismaService.est_contagem.updateMany).toHaveBeenNthCalledWith(2, {
         where: { contagem_cuid, contagem: 3 },
         data: { liberado_contagem: true },
       });
@@ -510,7 +512,7 @@ describe('EstoqueSaidasRepository', () => {
       const contagem_cuid = 'grupo-inexistente';
       const contagem = 1;
 
-      prismaService.est_contagem.updateMany
+      mockPrismaService.est_contagem.updateMany
         .mockResolvedValueOnce({ count: 1 }) // Para desabilitar contagem atual
         .mockResolvedValueOnce({ count: 0 }); // Para liberar próxima contagem (não encontrada)
 
@@ -572,12 +574,12 @@ describe('EstoqueSaidasRepository', () => {
         },
       ];
 
-      prismaService.est_contagem.findMany.mockResolvedValue(mockContagens);
-      prismaService.est_contagem_itens.findMany.mockResolvedValue(mockItens);
+      mockPrismaService.est_contagem.findMany.mockResolvedValue(mockContagens);
+      mockPrismaService.est_contagem_itens.findMany.mockResolvedValue(mockItens);
 
       const result = await repository.getContagensByGrupo(contagem_cuid);
 
-      expect(prismaService.est_contagem.findMany).toHaveBeenCalledWith({
+      expect(mockPrismaService.est_contagem.findMany).toHaveBeenCalledWith({
         where: { contagem_cuid },
         include: {
           usuario: {
@@ -591,7 +593,7 @@ describe('EstoqueSaidasRepository', () => {
         orderBy: { contagem: 'asc' },
       });
 
-      expect(prismaService.est_contagem_itens.findMany).toHaveBeenCalledWith({
+      expect(mockPrismaService.est_contagem_itens.findMany).toHaveBeenCalledWith({
         where: { contagem_cuid },
         orderBy: { cod_produto: 'asc' },
       });
@@ -673,14 +675,14 @@ describe('EstoqueSaidasRepository', () => {
         },
       ];
 
-      prismaService.est_contagem.findMany.mockResolvedValue(mockContagens);
-      prismaService.est_contagem_itens.findMany
+      mockPrismaService.est_contagem.findMany.mockResolvedValue(mockContagens);
+      mockPrismaService.est_contagem_itens.findMany
         .mockResolvedValueOnce(mockItens1)
         .mockResolvedValueOnce(mockItens2);
 
       const result = await repository.getAllContagens();
 
-      expect(prismaService.est_contagem.findMany).toHaveBeenCalledWith({
+      expect(mockPrismaService.est_contagem.findMany).toHaveBeenCalledWith({
         include: {
           usuario: {
             select: {
@@ -695,12 +697,12 @@ describe('EstoqueSaidasRepository', () => {
         },
       });
 
-      expect(prismaService.est_contagem_itens.findMany).toHaveBeenCalledTimes(2);
-      expect(prismaService.est_contagem_itens.findMany).toHaveBeenNthCalledWith(1, {
+      expect(mockPrismaService.est_contagem_itens.findMany).toHaveBeenCalledTimes(2);
+      expect(mockPrismaService.est_contagem_itens.findMany).toHaveBeenNthCalledWith(1, {
         where: { contagem_cuid: 'grupo-456' },
         orderBy: { cod_produto: 'asc' },
       });
-      expect(prismaService.est_contagem_itens.findMany).toHaveBeenNthCalledWith(2, {
+      expect(mockPrismaService.est_contagem_itens.findMany).toHaveBeenNthCalledWith(2, {
         where: { contagem_cuid: 'grupo-789' },
         orderBy: { cod_produto: 'asc' },
       });
@@ -715,11 +717,11 @@ describe('EstoqueSaidasRepository', () => {
     });
 
     it('deve retornar array vazio quando não há contagens', async () => {
-      prismaService.est_contagem.findMany.mockResolvedValue([]);
+      mockPrismaService.est_contagem.findMany.mockResolvedValue([]);
 
       const result = await repository.getAllContagens();
 
-      expect(prismaService.est_contagem.findMany).toHaveBeenCalledWith({
+      expect(mockPrismaService.est_contagem.findMany).toHaveBeenCalledWith({
         include: {
           usuario: {
             select: {
@@ -754,7 +756,7 @@ describe('EstoqueSaidasRepository', () => {
         },
       ];
 
-      prismaService.est_contagem.findMany.mockResolvedValue(mockContagens);
+      mockPrismaService.est_contagem.findMany.mockResolvedValue(mockContagens);
 
       const result = await repository.getAllContagens();
 

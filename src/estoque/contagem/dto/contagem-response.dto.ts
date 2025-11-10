@@ -67,6 +67,7 @@ export class ContagemResponseDto {
         ref_fornecedor: '056597',
         localizacao: 'B1002A03',
         unidade: 'UN',
+        aplicacoes: 'APLICAÇÃO ESPECÍFICA DO PRODUTO',
         qtde_saida: 1,
         estoque: 8,
         reserva: 2
@@ -85,6 +86,7 @@ export class ContagemResponseDto {
     ref_fornecedor: string | null;
     localizacao: string | null;
     unidade: string | null;
+    aplicacoes: string | null;
     qtde_saida: number;
     estoque: number;
     reserva: number;

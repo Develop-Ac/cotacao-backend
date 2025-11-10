@@ -63,6 +63,22 @@ export class EstoqueSaidaResponseDto {
   unidade!: string | null;
 
   @ApiProperty({
+    description: 'Aplicações do produto',
+    example: 'APLICAÇÃO ESPECÍFICA DO PRODUTO',
+    type: 'string',
+    nullable: true
+  })
+  APLICACOES!: string | null;
+
+  @ApiProperty({
+    description: 'Código de barras do produto',
+    example: '7891234567890',
+    type: 'string',
+    nullable: true
+  })
+  codigo_barras!: string | null;
+
+  @ApiProperty({
     description: 'Quantidade de saída do produto',
     example: 5,
     type: 'number'

@@ -71,6 +71,15 @@ export class CreateContagemItemDto {
   UNIDADE?: string;
 
   @ApiProperty({
+    description: 'Aplicações do produto',
+    example: 'APLICAÇÃO ESPECÍFICA DO PRODUTO',
+    required: false
+  })
+  @IsOptional()
+  @IsString()
+  APLICACOES?: string;
+
+  @ApiProperty({
     description: 'Quantidade de saída',
     example: 1
   })

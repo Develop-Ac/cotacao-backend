@@ -18,6 +18,9 @@ model sis_usuarios {
   
   // relação com contagem de estoque
   est_contagem est_contagem[]
+  
+  // relação com logs de contagem
+  est_contagem_logs est_contagem_log[]
 }
 
 model com_cotacao {
@@ -28,15 +31,16 @@ model com_cotacao {
 }
 
 model com_cotacao_itens {
-  pedido_cotacao Int
-  emissao        DateTime?
-  pro_codigo     Int
-  pro_descricao  String
-  mar_descricao  String?
-  referencia     String?
-  unidade        String?
-  quantidade     Int
-  com_cotacao    com_cotacao @relation(fields: [pedido_cotacao], references: [pedido_cotacao], onDelete: Cascade)
+  pedido_cotacao   Int
+  emissao          DateTime?
+  pro_codigo       Int
+  pro_descricao    String
+  mar_descricao    String?
+  referencia       String?
+  unidade          String?
+  quantidade       Int
+  dt_ultima_compra DateTime?
+  com_cotacao      com_cotacao @relation(fields: [pedido_cotacao], references: [pedido_cotacao], onDelete: Cascade)
 
   @@id([pedido_cotacao, pro_codigo])
 }
@@ -182,6 +186,9 @@ model est_contagem {
   // relação com usuário
   usuario     sis_usuarios @relation(fields: [colaborador], references: [id])
   
+  // relação com logs
+  logs        est_contagem_log[]
+  
   @@index([colaborador])
   @@index([contagem_cuid])
 }
@@ -197,11 +204,34 @@ model est_contagem_itens {
   ref_fornecedor   String?
   localizacao      String?
   unidade          String?
+  aplicacoes       String?
   qtde_saida       Int
   estoque          Int
   reserva          Int
   conferir         Boolean  @default(true)
   
+  // relação com logs
+  logs             est_contagem_log[]
+  
   @@index([contagem_cuid])
   @@index([cod_produto])
+}
+
+model est_contagem_log {
+  id           String   @id @default(cuid())
+  contagem_id  String
+  usuario_id   String
+  item_id      String
+  estoque      Int
+  contado      Int
+  created_at   DateTime @default(now())
+  
+  // Relacionamentos
+  contagem     est_contagem @relation(fields: [contagem_id], references: [id])
+  usuario      sis_usuarios @relation(fields: [usuario_id], references: [id])
+  item         est_contagem_itens @relation(fields: [item_id], references: [id])
+  
+  @@index([contagem_id])
+  @@index([usuario_id])
+  @@index([item_id])
 }
