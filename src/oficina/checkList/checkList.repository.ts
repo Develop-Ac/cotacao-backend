@@ -37,7 +37,13 @@ export class ChecklistRepository {
       throw new Error('O argumento "data" está vazio ou inválido.');
     }
 
-    return this.prisma.ofi_checklists.update({ where, data });
+    // Remover campos não permitidos
+    const { id, createdAt, updatedAt, ...filteredData } = data;
+
+    return this.prisma.ofi_checklists.update({
+      where,
+      data: filteredData,
+    });
   }
 
   delete(where: Prisma.ofi_checklistsWhereUniqueInput) {
