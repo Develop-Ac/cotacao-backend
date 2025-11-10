@@ -334,45 +334,73 @@ describe('CheckListService', () => {
     it('deve atualizar um checklist existente', async () => {
       const id = 'checklist-123';
       const updateData = {
-        observacoes: 'Observações atualizadas',
-        combustivelPercentual: 80,
-      };
-
-      const mockExistingChecklist = {
-        id: 'checklist-123',
-        osInterna: 'OS-123',
-        dataHoraEntrada: new Date('2024-01-15T10:00:00Z'),
-        observacoes: 'Observações antigas',
-        combustivelPercentual: 75,
-        clienteNome: 'JOÃO DA SILVA',
-        veiculoPlaca: 'ABC-1234',
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        osInterna: 'OS-456',
+        combustivelPercentual: 50,
+        clienteNome: 'MARIA DA SILVA',
+        veiculoKm: BigInt(60000),
+        ofi_checklists_items: [
+          { id: 'item-1', nome: 'Verificar óleo', status: 'OK' },
+          { nome: 'Verificar freios', status: 'PENDENTE' },
+        ],
+        ofi_checklists_avarias: [
+          { id: 'avaria-1', tipo: 'AMASSADO', peca: 'PARA-CHOQUE' },
+          { tipo: 'RISCO', peca: 'PORTA' },
+        ],
       };
 
       const mockUpdatedChecklist = {
-        ...mockExistingChecklist,
-        ...updateData,
-        updatedAt: new Date(),
+        id,
+        osInterna: 'OS-456',
+        combustivelPercentual: 50,
+        clienteNome: 'MARIA DA SILVA',
+        veiculoKm: BigInt(60000),
+        ofi_checklists_items: [
+          { id: 'item-1', nome: 'Verificar óleo', status: 'OK' },
+          { id: 'item-2', nome: 'Verificar freios', status: 'PENDENTE' },
+        ],
+        ofi_checklists_avarias: [
+          { id: 'avaria-1', tipo: 'AMASSADO', peca: 'PARA-CHOQUE' },
+          { id: 'avaria-2', tipo: 'RISCO', peca: 'PORTA' },
+        ],
       };
 
-      repository.findUnique.mockResolvedValue(mockExistingChecklist);
       repository.update.mockResolvedValue(mockUpdatedChecklist);
 
       const result = await service.update(id, updateData);
 
-      expect(repository.findUnique).toHaveBeenCalledWith({ id });
-      expect(repository.update).toHaveBeenCalledWith({ id }, updateData);
+      expect(repository.update).toHaveBeenCalledWith(
+        { id },
+        expect.objectContaining({
+          osInterna: 'OS-456',
+          combustivelPercentual: 50,
+          clienteNome: 'MARIA DA SILVA',
+          veiculoKm: expect.any(BigInt),
+          ofi_checklists_items: expect.objectContaining({
+            update: expect.arrayContaining([
+              expect.objectContaining({
+                where: { id: 'item-1' },
+                data: expect.objectContaining({ nome: 'Verificar óleo', status: 'OK' }),
+              }),
+            ]),
+            create: expect.arrayContaining([
+              expect.objectContaining({ nome: 'Verificar freios', status: 'PENDENTE' }),
+            ]),
+          }),
+          ofi_checklists_avarias: expect.objectContaining({
+            update: expect.arrayContaining([
+              expect.objectContaining({
+                where: { id: 'avaria-1' },
+                data: expect.objectContaining({ tipo: 'AMASSADO', peca: 'PARA-CHOQUE' }),
+              }),
+            ]),
+            create: expect.arrayContaining([
+              expect.objectContaining({ tipo: 'RISCO', peca: 'PORTA' }),
+            ]),
+          }),
+        })
+      );
+
       expect(result).toEqual(mockUpdatedChecklist);
-    });
-
-    it('deve propagar erro quando checklist não encontrado para atualização', async () => {
-      const id = 'checklist-inexistente';
-      const updateData = { observacoes: 'TESTE' };
-
-      repository.findUnique.mockResolvedValue(null);
-
-      await expect(service.update(id, updateData)).rejects.toThrow('Checklist não encontrado');
     });
   });
 

@@ -6,7 +6,8 @@ import {
   ApiOkResponse, 
   ApiCreatedResponse,
   ApiBadRequestResponse,
-  ApiParam
+  ApiParam,
+  ApiBody
 } from '@nestjs/swagger';
 import { ChecklistsService } from './checkList.service';
 import { CreateChecklistDto } from './dto/create-checklist.dto';
@@ -21,11 +22,11 @@ export class ChecklistsController {
   @ApiOperation({ 
     summary: 'Criar checklist 3D',
     description: 'Cria um novo checklist recebendo dados JSON do frontend'
-  })
+  }) 
   @ApiCreatedResponse({ 
-    description: 'Checklist criado com sucesso',
+    description: 'Checklist criado com sucesso', 
     example: { id: 'abc123', createdAt: '2024-01-01T10:00:00.000Z' }
-  })
+  }) 
   @ApiBadRequestResponse({
     description: 'Dados inválidos fornecidos'
   })
@@ -73,8 +74,49 @@ export class ChecklistsController {
   @ApiBadRequestResponse({
     description: 'Dados inválidos fornecidos'
   })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        osInterna: { type: 'string' },
+        dataHoraEntrada: { type: 'string', format: 'date-time' },
+        observacoes: { type: 'string', nullable: true },
+        combustivelPercentual: { type: 'number' },
+        clienteNome: { type: 'string' },
+        clienteDoc: { type: 'string' },
+        clienteTel: { type: 'string' },
+        clienteEnd: { type: 'string' },
+        veiculoNome: { type: 'string' },
+        veiculoPlaca: { type: 'string' },
+        veiculoCor: { type: 'string' },
+        veiculoKm: { type: 'string' },
+        ofi_checklists_items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              nome: { type: 'string' },
+              status: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+  })
   async updateChecklist(@Param('id') id: string, @Body() checklist: any) {
-    const updatedChecklist = await this.service.update(id, checklist);
-    return updatedChecklist;
+    // Remover o campo checklistId, se existir
+    const { checklistId, ...validChecklist } = checklist;
+
+    const updatedChecklist = await this.service.update(id, validChecklist);
+
+    // Converter BigInt para string na resposta
+    const response = JSON.parse(
+      JSON.stringify(updatedChecklist, (key, value) =>
+        typeof value === 'bigint' ? value.toString() : value
+      )
+    );
+
+    return response;
   }
 }

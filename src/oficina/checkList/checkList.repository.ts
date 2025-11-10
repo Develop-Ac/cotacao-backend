@@ -65,11 +65,13 @@ export class ChecklistRepository {
     // Transformar itens relacionados em um formato compatível com o Prisma
     if (ofi_checklists_items) {
       filteredData.ofi_checklists_items = {
-        upsert: ofi_checklists_items.map((item: any) => ({
+        update: ofi_checklists_items.map((item: any) => ({
           where: { id: item.id },
-          update: { ...item },
-          create: { ...item },
+          data: { ...item },
         })),
+        create: ofi_checklists_items
+          .filter((item: any) => !item.id) // Apenas itens sem ID serão criados
+          .map((item: any) => ({ ...item })),
       };
     }
 

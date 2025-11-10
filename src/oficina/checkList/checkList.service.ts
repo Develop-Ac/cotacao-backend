@@ -166,8 +166,49 @@ const where: Prisma.ofi_checklistsWhereInput | undefined = search
     const exists = await this.repo.findUnique({ id });
     if (!exists) throw new NotFoundException('Checklist não encontrado');
 
+    // Remover campos inválidos
+    const { checklistId, ...validData } = data;
+
+    // Processar itens relacionados
+    if (validData.ofi_checklists_items) {
+      validData.ofi_checklists_items = {
+        update: validData.ofi_checklists_items.map((item: any) => {
+          const { checklistId, ...validItem } = item; // Remover checklistId
+          return {
+            where: { id: validItem.id },
+            data: { ...validItem },
+          };
+        }),
+        create: validData.ofi_checklists_items 
+          .filter((item: any) => !item.id) // Apenas itens sem ID serão criados
+          .map((item: any) => {
+            const { checklistId, ...validItem } = item; // Remover checklistId
+            return { ...validItem };
+          }),
+      };
+    }
+
+    // Processar avarias relacionadas
+    if (validData.ofi_checklists_avarias) {
+      validData.ofi_checklists_avarias = {
+        update: validData.ofi_checklists_avarias.map((avaria: any) => {
+          const { checklistId, ...validAvaria } = avaria; // Remover checklistId
+          return {
+            where: { id: validAvaria.id },
+            data: { ...validAvaria },
+          };
+        }),
+        create: validData.ofi_checklists_avarias
+          .filter((avaria: any) => !avaria.id) // Apenas avarias sem ID serão criadas
+          .map((avaria: any) => {
+            const { checklistId, ...validAvaria } = avaria; // Remover checklistId
+            return { ...validAvaria };
+          }),
+      }; 
+    }
+  
     // Atualizar checklist principal
-    const updatedChecklist = await this.repo.update({ id }, data);
+    const updatedChecklist = await this.repo.update({ id }, validData);
 
     return updatedChecklist;
   }
