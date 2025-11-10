@@ -54,11 +54,11 @@ export class ContagemResponseDto {
   };
 
   @ApiProperty({
-    description: 'Lista de itens da contagem',
+    description: 'Lista de itens da contagem (presente apenas em alguns endpoints)',
     example: [
       {
         id: 'clx1111222233334444',
-        contagem_id: 'clx1234567890abcdef',
+        contagem_cuid: 'clx1234567890group',
         data: '2025-11-04T00:00:00.000Z',
         cod_produto: 23251,
         desc_produto: 'CAPA P/CHOQUE DIANT. S-10 12/16 PRETO LISO - DTS',
@@ -70,14 +70,15 @@ export class ContagemResponseDto {
         aplicacoes: 'APLICAÇÃO ESPECÍFICA DO PRODUTO',
         qtde_saida: 1,
         estoque: 8,
-        reserva: 2
-        ,conferir: true
+        reserva: 2,
+        conferir: true
       }
-    ]
+    ],
+    required: false
   })
-  itens!: Array<{
+  itens?: Array<{
     id: string;
-    contagem_id: string;
+    contagem_cuid: string;
     data: Date;
     cod_produto: number;
     desc_produto: string;
@@ -90,6 +91,31 @@ export class ContagemResponseDto {
     qtde_saida: number;
     estoque: number;
     reserva: number;
-          conferir: boolean;
+    conferir: boolean;
+  }>;
+
+  @ApiProperty({
+    description: 'Lista de logs da contagem',
+    example: [
+      {
+        id: 'clx5555666677778888',
+        contagem_id: 'clx1234567890abcdef',
+        usuario_id: 'clx0987654321fedcba',
+        item_id: 'clx1111222233334444',
+        estoque: 100,
+        contado: 95,
+        created_at: '2025-11-10T13:30:00.000Z'
+      }
+    ],
+    required: false
+  })
+  logs?: Array<{
+    id: string;
+    contagem_id: string;
+    usuario_id: string;
+    item_id: string;
+    estoque: number;
+    contado: number;
+    created_at: Date;
   }>;
 }

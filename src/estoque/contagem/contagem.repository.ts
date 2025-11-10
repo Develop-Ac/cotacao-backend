@@ -387,7 +387,7 @@ export class EstoqueSaidasRepository {
   }
 
   async getAllContagens() {
-    // Buscar todas as contagens com informações do usuário
+    // Buscar todas as contagens com informações do usuário e logs
     const contagens = await this.prisma.est_contagem.findMany({
       include: {
         usuario: {
@@ -396,6 +396,20 @@ export class EstoqueSaidasRepository {
             nome: true,
             codigo: true
           }
+        },
+        logs: {
+          select: {
+            id: true,
+            contagem_id: true,
+            usuario_id: true,
+            item_id: true,
+            estoque: true,
+            contado: true,
+            created_at: true
+          },
+          orderBy: {
+            created_at: 'desc'
+          }
         }
       },
       orderBy: {
@@ -403,25 +417,7 @@ export class EstoqueSaidasRepository {
       }
     });
 
-    // Buscar os itens separadamente usando contagem_cuid
-    const contagensComItens = await Promise.all(
-      contagens.map(async (contagem) => {
-        if (contagem.contagem_cuid) {
-          const itens = await this.prisma.est_contagem_itens.findMany({
-            where: {
-              contagem_cuid: contagem.contagem_cuid
-            },
-            orderBy: {
-              cod_produto: 'asc'
-            }
-          });
-          return { ...contagem, itens };
-        }
-        return { ...contagem, itens: [] };
-      })
-    );
-
-    return contagensComItens;
+    return contagens;
   }
 
   async createLog(createLogData: {

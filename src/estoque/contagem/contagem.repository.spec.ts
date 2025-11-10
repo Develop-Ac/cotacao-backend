@@ -621,6 +621,7 @@ describe('EstoqueSaidasRepository', () => {
             nome: 'JOÃO DA SILVA',
             codigo: 'JS001',
           },
+          logs: []
         },
         {
           id: 'contagem-456',
@@ -634,6 +635,7 @@ describe('EstoqueSaidasRepository', () => {
             nome: 'MARIA SANTOS',
             codigo: 'MS002',
           },
+          logs: []
         },
       ];
 
@@ -676,9 +678,6 @@ describe('EstoqueSaidasRepository', () => {
       ];
 
       mockPrismaService.est_contagem.findMany.mockResolvedValue(mockContagens);
-      mockPrismaService.est_contagem_itens.findMany
-        .mockResolvedValueOnce(mockItens1)
-        .mockResolvedValueOnce(mockItens2);
 
       const result = await repository.getAllContagens();
 
@@ -691,27 +690,29 @@ describe('EstoqueSaidasRepository', () => {
               codigo: true,
             },
           },
+          logs: {
+            select: {
+              id: true,
+              contagem_id: true,
+              usuario_id: true,
+              item_id: true,
+              estoque: true,
+              contado: true,
+              created_at: true
+            },
+            orderBy: {
+              created_at: 'desc'
+            }
+          }
         },
         orderBy: {
           created_at: 'desc',
         },
       });
 
-      expect(mockPrismaService.est_contagem_itens.findMany).toHaveBeenCalledTimes(2);
-      expect(mockPrismaService.est_contagem_itens.findMany).toHaveBeenNthCalledWith(1, {
-        where: { contagem_cuid: 'grupo-456' },
-        orderBy: { cod_produto: 'asc' },
-      });
-      expect(mockPrismaService.est_contagem_itens.findMany).toHaveBeenNthCalledWith(2, {
-        where: { contagem_cuid: 'grupo-789' },
-        orderBy: { cod_produto: 'asc' },
-      });
-
       expect(result).toHaveLength(2);
-      expect(result[0]).toHaveProperty('itens');
-      expect(result[1]).toHaveProperty('itens');
-      expect(result[0].itens).toEqual(mockItens1);
-      expect(result[1].itens).toEqual(mockItens2);
+      expect(result[0]).not.toHaveProperty('itens');
+      expect(result[1]).not.toHaveProperty('itens');
       expect(result[0].usuario.nome).toBe('JOÃO DA SILVA');
       expect(result[1].usuario.nome).toBe('MARIA SANTOS');
     });
@@ -730,6 +731,20 @@ describe('EstoqueSaidasRepository', () => {
               codigo: true,
             },
           },
+          logs: {
+            select: {
+              id: true,
+              contagem_id: true,
+              usuario_id: true,
+              item_id: true,
+              estoque: true,
+              contado: true,
+              created_at: true
+            },
+            orderBy: {
+              created_at: 'desc'
+            }
+          }
         },
         orderBy: {
           created_at: 'desc',
@@ -761,8 +776,7 @@ describe('EstoqueSaidasRepository', () => {
       const result = await repository.getAllContagens();
 
       expect(result).toHaveLength(1);
-      expect(result[0]).toHaveProperty('itens');
-      expect(result[0].itens).toEqual([]);
+      expect(result[0]).not.toHaveProperty('itens');
     });
   });
 });

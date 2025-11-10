@@ -18,6 +18,7 @@ describe('EstoqueSaidasService', () => {
     updateLiberadoContagem: jest.fn(),
     getContagensByGrupo: jest.fn(),
     getAllContagens: jest.fn(),
+    createLog: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -33,7 +34,7 @@ describe('EstoqueSaidasService', () => {
 
     service = module.get<EstoqueSaidasService>(EstoqueSaidasService);
     repository = module.get<EstoqueSaidasRepository>(EstoqueSaidasRepository) as jest.Mocked<EstoqueSaidasRepository>;
-  });
+  }); 
 
   afterEach(() => {
     jest.clearAllMocks();
@@ -125,7 +126,7 @@ describe('EstoqueSaidasService', () => {
         itens: [
           {
             id: 'item-789',
-            contagem_id: 'grupo-123',
+            contagem_cuid: 'grupo-123',
             data: new Date('2024-01-15T00:00:00Z'),
             cod_produto: 12345,
             desc_produto: 'PRODUTO TESTE',
@@ -143,7 +144,7 @@ describe('EstoqueSaidasService', () => {
         ],
       };
 
-      repository.createContagem.mockResolvedValue(mockContagemResponse);
+      repository.createContagem.mockResolvedValue(mockContagemResponse as any);
 
       const result = await service.createContagem(createContagemDto);
 
@@ -213,7 +214,7 @@ describe('EstoqueSaidasService', () => {
 
       expect(repository.getContagensByUsuario).toHaveBeenCalledWith(idUsuario);
       expect(result).toHaveLength(1);
-      expect(result[0].itens[0]).toHaveProperty('contagem_id', 'grupo-456');
+      expect(result[0]?.itens?.[0]).toHaveProperty('contagem_id', 'grupo-456');
     });
 
     it('deve repassar erro de usuário não encontrado', async () => {
@@ -369,12 +370,12 @@ describe('EstoqueSaidasService', () => {
 
       expect(repository.getContagensByGrupo).toHaveBeenCalledWith(contagem_cuid);
       expect(result).toHaveLength(1);
-      expect(result[0].itens[0]).toHaveProperty('contagem_id', 'grupo-123');
+      expect(result[0]?.itens?.[0]).toHaveProperty('contagem_id', 'grupo-123');
     });
   });
 
   describe('getAllContagens', () => {
-    it('deve retornar todas as contagens com itens mapeados', async () => {
+    it('deve retornar todas as contagens com logs', async () => {
       const mockContagens = [
         {
           id: 'contagem-123',
@@ -388,23 +389,15 @@ describe('EstoqueSaidasService', () => {
             nome: 'JOÃO DA SILVA',
             codigo: 'JS001',
           },
-          itens: [
+          logs: [
             {
-              id: 'item-789',
-              contagem_cuid: 'grupo-456',
-              data: new Date('2024-01-15T00:00:00Z'),
-              cod_produto: 12345,
-              desc_produto: 'PRODUTO TESTE',
-              mar_descricao: 'MARCA TESTE',
-              ref_fabricante: 'REF123',
-              ref_fornecedor: 'FORN123',
-              localizacao: 'A01-B02',
-              unidade: 'UN',
-              aplicacoes: 'APLICAÇÃO TESTE',
-              qtde_saida: 5,
+              id: 'log-789',
+              contagem_id: 'contagem-123',
+              usuario_id: 'user-123',
+              item_id: 'item-456',
               estoque: 100,
-              reserva: 10,
-              conferir: false,
+              contado: 95,
+              created_at: new Date('2024-01-15T10:30:00Z'),
             },
           ],
         },
@@ -420,23 +413,15 @@ describe('EstoqueSaidasService', () => {
             nome: 'MARIA SANTOS',
             codigo: 'MS002',
           },
-          itens: [
+          logs: [
             {
-              id: 'item-101',
-              contagem_cuid: 'grupo-789',
-              data: new Date('2024-01-16T00:00:00Z'),
-              cod_produto: 67890,
-              desc_produto: 'OUTRO PRODUTO TESTE',
-              mar_descricao: 'OUTRA MARCA',
-              ref_fabricante: 'REF456',
-              ref_fornecedor: 'FORN456',
-              localizacao: 'B02-C03',
-              unidade: 'PC',
-              aplicacoes: 'OUTRA APLICAÇÃO TESTE',
-              qtde_saida: 3,
+              id: 'log-101',
+              contagem_id: 'contagem-456',
+              usuario_id: 'user-456',
+              item_id: 'item-789',
               estoque: 50,
-              reserva: 5,
-              conferir: true,
+              contado: 48,
+              created_at: new Date('2024-01-16T10:30:00Z'),
             },
           ],
         },
@@ -448,8 +433,10 @@ describe('EstoqueSaidasService', () => {
 
       expect(repository.getAllContagens).toHaveBeenCalledWith();
       expect(result).toHaveLength(2);
-      expect(result[0].itens[0]).toHaveProperty('contagem_id', 'grupo-456');
-      expect(result[1].itens[0]).toHaveProperty('contagem_id', 'grupo-789');
+      expect(result[0].logs).toBeDefined();
+      expect(result[1].logs).toBeDefined();
+      expect(result[0].logs![0]).toHaveProperty('contagem_id', 'contagem-123');
+      expect(result[1].logs![0]).toHaveProperty('contagem_id', 'contagem-456');
       expect(result[0].usuario.nome).toBe('JOÃO DA SILVA');
       expect(result[1].usuario.nome).toBe('MARIA SANTOS');
     });

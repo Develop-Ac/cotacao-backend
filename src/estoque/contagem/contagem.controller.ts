@@ -99,7 +99,7 @@ export class EstoqueSaidasController {
   @Get('lista')
   @ApiOperation({
     summary: 'Listar todas as contagens',
-    description: 'Retorna uma lista de todas as contagens realizadas no sistema, incluindo todos os itens de cada contagem'
+    description: 'Retorna uma lista de todas as contagens realizadas no sistema, incluindo todos os itens e logs de cada contagem'
   })
   @ApiOkResponse({
     description: 'Lista de todas as contagens retornada com sucesso',
@@ -135,6 +135,28 @@ export class EstoqueSaidasController {
             estoque: 8,
             reserva: 2,
             conferir: true
+          }
+        ],
+        logs: [
+          {
+            id: 'clx5555666677778888',
+            contagem_id: 'clx1234567890abcdef',
+            usuario_id: 'clx0987654321fedcba',
+            item_id: 'clx1111222233334444',
+            estoque: 100,
+            contado: 95,
+            created_at: '2025-11-10T13:30:00.000Z',
+            usuario: {
+              id: 'clx0987654321fedcba',
+              nome: 'JOÃO DA SILVA',
+              codigo: 'JS001'
+            },
+            item: {
+              id: 'clx1111222233334444',
+              cod_produto: 23251,
+              desc_produto: 'PRODUTO TESTE',
+              localizacao: 'B1002A03'
+            }
           }
         ]
       }
