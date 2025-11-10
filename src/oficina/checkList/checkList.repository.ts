@@ -33,6 +33,10 @@ export class ChecklistRepository {
   }
 
   update(where: Prisma.ofi_checklistsWhereUniqueInput, data: Prisma.ofi_checklistsUpdateInput) {
+    if (!data || Object.keys(data).length === 0) {
+      throw new Error('O argumento "data" está vazio ou inválido.');
+    }
+
     return this.prisma.ofi_checklists.update({ where, data });
   }
 
@@ -45,9 +49,19 @@ export class ChecklistRepository {
   }
 
   async updateChecklist(id: string, checklist: any) {
+    if (!checklist || Object.keys(checklist).length === 0) {
+      throw new Error('O objeto checklist está vazio ou inválido.');
+    }
+
+    const { id: _, ...data } = checklist; // Remove o campo 'id' do objeto checklist
+
+    if (Object.keys(data).length === 0) {
+      throw new Error('O objeto data está vazio após remover o campo id.');
+    }
+
     return this.prisma.ofi_checklists.update({
       where: { id },
-      data: checklist,
+      data, // Passa o objeto 'data' corretamente
     });
   }
 
