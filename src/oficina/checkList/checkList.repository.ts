@@ -43,4 +43,33 @@ export class ChecklistRepository {
   async transaction<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) {
     return this.prisma.$transaction(fn);
   }
+
+  async updateChecklist(id: string, checklist: any) {
+    return this.prisma.ofi_checklists.update({
+      where: { id },
+      data: checklist,
+    });
+  }
+
+  async updateChecklistItems(checklistId: string, items: any[]) {
+    // Exemplo: Atualizar itens relacionados
+    for (const item of items) {
+      await this.prisma.ofi_checklists_items.upsert({
+        where: { id: item.id },
+        update: item,
+        create: { ...item, checklistId },
+      });
+    }
+  }
+
+  async updateChecklistAvarias(checklistId: string, avarias: any[]) {
+    // Exemplo: Atualizar avarias relacionadas
+    for (const avaria of avarias) {
+      await this.prisma.ofi_checklists_avarias.upsert({
+        where: { id: avaria.id },
+        update: avaria,
+        create: { ...avaria, checklistId },
+      });
+    }
+  }
 }

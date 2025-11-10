@@ -161,6 +161,17 @@ const where: Prisma.ofi_checklistsWhereInput | undefined = search
     return { ok: true };
   }
 
+  /** UPDATE */
+  async update(id: string, data: any) {
+    const exists = await this.repo.findUnique({ id });
+    if (!exists) throw new NotFoundException('Checklist não encontrado');
+
+    // Atualizar checklist principal
+    const updatedChecklist = await this.repo.update({ id }, data);
+
+    return updatedChecklist;
+  }
+
   // Aliases para compatibilidade com os testes
   async findById(id: string) {
     return this.findOne(id);
@@ -168,13 +179,6 @@ const where: Prisma.ofi_checklistsWhereInput | undefined = search
 
   async delete(id: string) {
     return this.remove(id);
-  }
-
-  async update(id: string, data: any) {
-    const exists = await this.repo.findUnique({ id });
-    if (!exists) throw new NotFoundException('Checklist não encontrado');
-
-    return this.repo.update({ id }, data);
   }
 
   async findByPlaca(placa: string) {

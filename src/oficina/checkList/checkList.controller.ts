@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, NotFoundException, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, ParseIntPipe, Post, Put, Query } from '@nestjs/common';
 import { 
   ApiOperation, 
   ApiResponse, 
@@ -59,5 +59,22 @@ export class ChecklistsController {
     // Cria cópia convertendo veiculoKm para string
     const response = { ...checklist, veiculoKm: checklist.veiculoKm?.toString() ?? null };
     return response;
+  }
+
+  @Put(':id')
+  @ApiOperation({ 
+    summary: 'Atualizar checklist',
+    description: 'Atualiza um checklist existente com base nos dados fornecidos'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Checklist atualizado com sucesso' 
+  })
+  @ApiBadRequestResponse({
+    description: 'Dados inválidos fornecidos'
+  })
+  async updateChecklist(@Param('id') id: string, @Body() checklist: any) {
+    const updatedChecklist = await this.service.update(id, checklist);
+    return updatedChecklist;
   }
 }
