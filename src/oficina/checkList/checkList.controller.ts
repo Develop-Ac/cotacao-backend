@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
 import { 
   ApiOperation, 
   ApiResponse, 
@@ -46,29 +46,18 @@ export class ChecklistsController {
     return this.service.findAll(q);
   }
 
-  @Get(':id')
-  @ApiOperation({ 
-    summary: 'Obter checklist por ID',
-    description: 'Retorna um checklist específico pelo seu ID'
-  })
-  @ApiParam({
-    name: 'id',
-    description: 'ID do checklist',
-    example: 'abc123'
-  })
-  @ApiOkResponse({
-    description: 'Checklist encontrado com sucesso'
-  })
-  @ApiBadRequestResponse({
-    description: 'ID inválido'
-  })
-  async getOne(@Param('id', ParseIntPipe) id: string) {
-    return this.service.findOne(id);
-  }
-
-  @Delete(':id')
+  @Delete(':id') 
   @ApiOperation({ summary: 'Remover checklist' })
   async remove(@Param('id', ParseIntPipe) id: string) {
     return this.service.remove(id);
+  }
+
+  @Get(':os')
+  async getCheckListByOs(@Param('os') os: string) { 
+    const checklist = await this.service.findByOs(os);
+    if (!checklist) throw new NotFoundException('Checklist não encontrado');
+    // Cria cópia convertendo veiculoKm para string
+    const response = { ...checklist, veiculoKm: checklist.veiculoKm?.toString() ?? null };
+    return response;
   }
 }

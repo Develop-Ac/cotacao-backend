@@ -187,4 +187,16 @@ const where: Prisma.ofi_checklistsWhereInput | undefined = search
       },
     });
   }
+
+  async findByOs(os: string) {
+    const item = await this.repo.findFirst(
+      { where: { osInterna: os } },
+      {
+        ofi_checklists_items: true,
+        ofi_checklists_avarias: true,
+      }
+    );
+    if (!item) throw new NotFoundException('Checklist não encontrado');
+    return item;
+  }
 }

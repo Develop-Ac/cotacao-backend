@@ -28,6 +28,10 @@ export class ChecklistRepository {
     return this.prisma.ofi_checklists.findUnique({ where, include });
   }
 
+  findFirst(params: { where: Prisma.ofi_checklistsWhereInput }, include?: Prisma.ofi_checklistsInclude) {
+    return this.prisma.ofi_checklists.findFirst({ ...params, include });
+  }
+
   update(where: Prisma.ofi_checklistsWhereUniqueInput, data: Prisma.ofi_checklistsUpdateInput) {
     return this.prisma.ofi_checklists.update({ where, data });
   }
