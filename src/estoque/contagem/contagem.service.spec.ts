@@ -398,6 +398,10 @@ describe('EstoqueSaidasService', () => {
               estoque: 100,
               contado: 95,
               created_at: new Date('2024-01-15T10:30:00Z'),
+              item: {
+                cod_produto: 12345,
+                desc_produto: 'PRODUTO TESTE'
+              }
             },
           ],
         },
@@ -422,6 +426,10 @@ describe('EstoqueSaidasService', () => {
               estoque: 50,
               contado: 48,
               created_at: new Date('2024-01-16T10:30:00Z'),
+              item: {
+                cod_produto: 67890,
+                desc_produto: 'OUTRO PRODUTO TESTE'
+              }
             },
           ],
         },

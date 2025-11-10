@@ -405,7 +405,13 @@ export class EstoqueSaidasRepository {
             item_id: true,
             estoque: true,
             contado: true,
-            created_at: true
+            created_at: true,
+            item: {
+              select: {
+                cod_produto: true,
+                desc_produto: true
+              }
+            }
           },
           orderBy: {
             created_at: 'desc'
