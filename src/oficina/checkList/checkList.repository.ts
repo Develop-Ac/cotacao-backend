@@ -59,15 +59,22 @@ export class ChecklistRepository {
       throw new Error('O objeto checklist está vazio ou inválido.');
     }
 
-    const { id: _, ...data } = checklist; // Remove o campo 'id' do objeto checklist
+    // Remover campos não permitidos
+    const { id: _, createdAt, updatedAt, ofi_checklists_items, ...filteredData } = checklist;
 
-    if (Object.keys(data).length === 0) {
-      throw new Error('O objeto data está vazio após remover o campo id.');
+    // Transformar itens relacionados em um formato compatível com o Prisma
+    if (ofi_checklists_items) {
+      filteredData.ofi_checklists_items = {
+        updateMany: ofi_checklists_items.map((item: any) => ({
+          where: { id: item.id },
+          data: item,
+        })),
+      };
     }
 
     return this.prisma.ofi_checklists.update({
       where: { id },
-      data, // Passa o objeto 'data' corretamente
+      data: filteredData,
     });
   }
 
