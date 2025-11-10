@@ -431,16 +431,40 @@ export class EstoqueSaidasRepository {
     estoque: number;
     contado: number;
   }) {
-    const log = await this.prisma.est_contagem_log.create({
-      data: {
+    // Primeiro, verifica se já existe um log com o mesmo contagem_id e item_id
+    const existingLog = await this.prisma.est_contagem_log.findFirst({
+      where: {
         contagem_id: createLogData.contagem_id,
-        usuario_id: createLogData.usuario_id,
         item_id: createLogData.item_id,
-        estoque: createLogData.estoque,
-        contado: createLogData.contado,
       }
     });
 
-    return log;
+    if (existingLog) {
+      // Se existe, atualiza o registro existente
+      const updatedLog = await this.prisma.est_contagem_log.update({
+        where: {
+          id: existingLog.id
+        },
+        data: {
+          usuario_id: createLogData.usuario_id,
+          estoque: createLogData.estoque,
+          contado: createLogData.contado,
+          created_at: new Date(), // Atualiza também a data
+        }
+      });
+      return updatedLog;
+    } else {
+      // Se não existe, cria um novo registro
+      const log = await this.prisma.est_contagem_log.create({
+        data: {
+          contagem_id: createLogData.contagem_id,
+          usuario_id: createLogData.usuario_id,
+          item_id: createLogData.item_id,
+          estoque: createLogData.estoque,
+          contado: createLogData.contado,
+        }
+      });
+      return log;
+    }
   }
 }

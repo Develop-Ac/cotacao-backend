@@ -420,11 +420,11 @@ export class EstoqueSaidasController {
 
   @Post('log')
   @ApiOperation({
-    summary: 'Criar log de contagem',
-    description: 'Registra um log da contagem física realizada, comparando o estoque do sistema com a quantidade contada fisicamente'
+    summary: 'Criar ou atualizar log de contagem',
+    description: 'Registra um log da contagem física. Se já existir um log para o mesmo item e contagem, substitui o registro anterior pelos novos dados.'
   })
   @ApiCreatedResponse({
-    description: 'Log de contagem criado com sucesso',
+    description: 'Log de contagem criado ou atualizado com sucesso',
     type: LogResponseDto,
     example: {
       id: 'clx5555666677778888',
