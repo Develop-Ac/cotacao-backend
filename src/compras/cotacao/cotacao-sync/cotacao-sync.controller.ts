@@ -3,7 +3,7 @@ import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
 import { CotacaoSyncService } from './cotacao-sync.service';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
-@ApiTags('Cotação de Pedidos')
+@ApiTags('Compras - Pedidos de Cotação')
 @Controller('cotacao-sync')
 export class CotacaoSyncController {
   constructor(private readonly service: CotacaoSyncService) {}

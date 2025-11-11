@@ -6,6 +6,24 @@ import { Prisma } from '@prisma/client';
 export class ChecklistRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  private sanitizeData(data: any): any {
+    if (typeof data === 'string') {
+      return data.replace(/\0/g, ''); // Remove bytes nulos
+    }
+
+    if (Array.isArray(data)) {
+      return data.map((item) => this.sanitizeData(item));
+    }
+
+    if (data && typeof data === 'object') {
+      return Object.fromEntries(
+        Object.entries(data).map(([key, value]) => [key, this.sanitizeData(value)]),
+      );
+    }
+
+    return data;
+  }
+
   create(data: Prisma.ofi_checklistsCreateInput) {
     return this.prisma.ofi_checklists.create({ data });
   }
@@ -62,22 +80,25 @@ export class ChecklistRepository {
     // Remover campos não permitidos
     const { id: _, createdAt, updatedAt, ofi_checklists_items, ...filteredData } = checklist;
 
+    // Sanitizar os dados
+    const sanitizedData = this.sanitizeData(filteredData);
+
     // Transformar itens relacionados em um formato compatível com o Prisma
     if (ofi_checklists_items) {
-      filteredData.ofi_checklists_items = {
+      sanitizedData.ofi_checklists_items = {
         update: ofi_checklists_items.map((item: any) => ({
           where: { id: item.id },
-          data: { ...item },
+          data: this.sanitizeData(item),
         })),
         create: ofi_checklists_items
           .filter((item: any) => !item.id) // Apenas itens sem ID serão criados
-          .map((item: any) => ({ ...item })),
+          .map((item: any) => this.sanitizeData(item)),
       };
     }
 
     return this.prisma.ofi_checklists.update({
       where: { id },
-      data: filteredData,
+      data: sanitizedData,
     });
   }
 

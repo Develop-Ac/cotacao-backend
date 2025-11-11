@@ -19,6 +19,7 @@ import { S3Module } from './storage/s3.module';
 import { UploadsModule } from './oficina/s3/s3.module';
 import { EstoqueSaidasModule } from './estoque/contagem/contagem.module';
 import { EntregasModule } from './expedicao/entregas/entregas.module';
+import { NotaFiscalModule } from './compras/nota fiscal/nota fiscal/notaFiscal.module';
 
 @Module({
 imports: [
@@ -39,6 +40,7 @@ imports: [
     UploadsModule,
     EstoqueSaidasModule,
     EntregasModule,
+    NotaFiscalModule,
 
     // ⬇️ Prefixa *somente* esses módulos com /compras
     RouterModule.register([
@@ -52,6 +54,7 @@ imports: [
       { path: 'compras', module: FornecedorModule },
       { path: 'compras', module: CotacaoSyncModule },
       { path: 'compras', module: PedidoModule },
+      { path: 'compras', module: NotaFiscalModule },
       { path: 'estoque', module: EstoqueSaidasModule },
       { path: 'expedicao', module: EntregasModule }
     ]),

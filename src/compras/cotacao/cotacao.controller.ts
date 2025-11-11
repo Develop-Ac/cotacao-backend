@@ -12,7 +12,7 @@ import {
   ApiBadRequestResponse 
 } from '@nestjs/swagger';
 
-@ApiTags('Cotação de Pedidos')
+@ApiTags('Compras - Pedidos de Cotação')
 @Controller('pedidos-cotacao')
 export class CotacaoController {
   constructor(private service: CotacaoService) {}

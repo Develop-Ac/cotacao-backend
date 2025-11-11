@@ -15,7 +15,7 @@ import {
   ApiProduces
 } from '@nestjs/swagger';
 
-@ApiTags('Compras - Pedidos')
+@ApiTags('Compras - Pedidos de Cotação')
 @Controller('pedido')
 export class PedidoController {
   constructor(private readonly service: PedidoService) {}
