@@ -4,6 +4,7 @@ import { EstoqueSaidaRow } from './contagem.types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateContagemDto } from './dto/create-contagem.dto';
 import { ConferirEstoqueResponseDto } from './dto/conferir-estoque-response.dto';
+import { Prisma } from '@prisma/client';
 
 /**
  * Responsável por montar o T-SQL dinâmico com OPENQUERY(CONSULTA, '...').
@@ -468,5 +469,44 @@ export class EstoqueSaidasRepository {
       });
       return log;
     }
+  }
+
+  private sanitizeData(data: any): any {
+    if (typeof data === 'string') {
+      return data.replace(/\0/g, ''); // Remove bytes nulos
+    }
+
+    if (Array.isArray(data)) {
+      return data.map((item) => this.sanitizeData(item));
+    }
+
+    if (data && typeof data === 'object') {
+      return Object.fromEntries(
+        Object.entries(data).map(([key, value]) => [key, this.sanitizeData(value)])
+      );
+    }
+
+    return data;
+  }
+
+  async updateContagem(id: string, data: Prisma.est_contagemUpdateInput) {
+    const sanitizedData = this.sanitizeData(data);
+    return this.prisma.est_contagem.update({
+      where: { id },
+      data: sanitizedData,
+    });
+  }
+
+  async createContagemItem(data: Prisma.est_contagem_itensCreateInput) {
+    const sanitizedData = this.sanitizeData(data);
+    return this.prisma.est_contagem_itens.create({ data: sanitizedData });
+  }
+
+  async updateContagemItem(id: string, data: Prisma.est_contagem_itensUpdateInput) {
+    const sanitizedData = this.sanitizeData(data);
+    return this.prisma.est_contagem_itens.update({
+      where: { id },
+      data: sanitizedData,
+    });
   }
 }
