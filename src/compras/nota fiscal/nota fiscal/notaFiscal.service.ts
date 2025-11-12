@@ -1,20 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { OpenQueryService } from '../../../shared/database/openquery/openquery.service';
+import { NotaFiscalRepository } from './notaFiscal.repository';
 
 @Injectable()
 export class NotaFiscalService {
-  constructor(private readonly openQueryService: OpenQueryService) {}
+  constructor(private readonly notaFiscalRepository: NotaFiscalRepository) {}
 
   async getNfeDistribuicao() {
-    const query = `
-      SELECT * FROM NFE_DISTRIBUICAO NFD
-      LEFT JOIN nf_entrada_xml XML
-        ON (XML.empresa = NFD.EMPRESA)
-        AND (XML.chave_nfe = NFD.chave_nfe)
-      WHERE NFD.importada = 'N'
-      AND NFD.situacao_nfe = 1
-      AND NFD.EMPRESA = 1
-    `;
-    return this.openQueryService.query(query);
+    return this.notaFiscalRepository.fetchNfeDistribuicao();
   }
 }
