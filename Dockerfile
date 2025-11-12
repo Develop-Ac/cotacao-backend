@@ -4,18 +4,18 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
-# Toolchain + headers p/ node-canvas
-# (openssl já fica aqui para o prisma generate)
+# Toolchain + headers para node-canvas
 RUN apk add --no-cache \
   openssl \
-  python3 make g++ pkgconfig \
+  python3 make g++ pkgconf \
   cairo-dev pango-dev jpeg-dev giflib-dev librsvg-dev pixman-dev
 
-# Ajuda o node-gyp a achar o Python
-RUN ln -sf /usr/bin/python3 /usr/bin/python && \
-    npm config set python "/usr/bin/python3"
+# >>> Defina o Python para o node-gyp via env (npm 10 não aceita 'npm config set python')
+ENV PYTHON=/usr/bin/python3
+ENV npm_config_python=/usr/bin/python3
+RUN ln -sf /usr/bin/python3 /usr/bin/python
 
-# Instala dependências antes de copiar o resto (melhor cache)
+# Instala deps antes do código (cache melhor)
 COPY package*.json ./
 RUN npm ci
 
@@ -24,7 +24,7 @@ COPY prisma ./prisma
 COPY tsconfig*.json nest-cli.json* ./
 COPY src ./src
 
-# Prisma + build da app
+# Prisma + build
 RUN npx prisma generate
 RUN npm run build
 
@@ -42,12 +42,9 @@ RUN apk add --no-cache \
 ENV NODE_ENV=production
 ENV PORT=8000
 
-# Artefatos do build
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/dist ./dist
 
 EXPOSE 8000
-
-# Migra silenciosa (se falhar, não derruba) e inicia app
 CMD ["sh","-c","npx prisma migrate deploy || true; node dist/main.js"]
