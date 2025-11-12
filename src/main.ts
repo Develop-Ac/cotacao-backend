@@ -4,18 +4,78 @@ import { AppModule } from './app.module';
 import helmet from 'helmet';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as bodyParser from 'body-parser';
+// (opcional, mas recomendado quando usa cookies/autenticação)
+import cookieParser from 'cookie-parser';
+
+function parseOrigins(env?: string): (string | RegExp)[] {
+  if (!env) return [];
+  return env
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(s => {
+      // Permite regex usando prefixo "regex:"
+      if (s.startsWith('regex:')) {
+        const pattern = s.slice(6);
+        return new RegExp(pattern);
+      }
+      return s;
+    });
+}
+
+function isAllowedOrigin(origin: string | undefined, allowed: (string | RegExp)[]) {
+  if (!origin) return true; // requests server-to-server, curl, etc.
+  if (allowed.length === 0) return true; // se não configurou nada, libera
+  for (const rule of allowed) {
+    if (rule instanceof RegExp && rule.test(origin)) return true;
+    if (typeof rule === 'string' && rule === origin) return true;
+  }
+  return false;
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
-  app.use(helmet({
-    contentSecurityPolicy: false,       // necessário para swagger-ui
-    crossOriginEmbedderPolicy: false,   // evita bloqueio de assets
-  }));
+  // Se estiver atrás de proxy reverso (Nginx/Traefik) e usar cookies Secure, habilite:
+  // app.set('trust proxy', 1);
+
+  app.use(cookieParser());
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,     // necessário para swagger-ui
+      crossOriginEmbedderPolicy: false, // evita bloqueio de assets
+    }),
+  );
+
+  const allowedOrigins = parseOrigins(process.env.CORS_ORIGIN);
+  // Ex.: CORS_ORIGIN="http://intranet.acacessorios.local,http://localhost:3000"
+  // ou   CORS_ORIGIN="regex:^https?://(localhost:\d+|.*\.acacessorios\.local)$"
+
   app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',').map(s => s.trim()) ?? true,
-    credentials: true,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    origin: (origin, callback) => {
+      const ok = isAllowedOrigin(origin, allowedOrigins);
+      callback(null, ok);
+    },
+    credentials: true, // necessário se usar cookies/autenticação
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+      'Cache-Control',
+      'Pragma',
+    ],
+    exposedHeaders: ['Content-Disposition'],
+    maxAge: 86400, // cache do preflight por 1 dia
+  });
+
+  // Garante Vary: Origin (útil se usar origin dinâmico/função)
+  app.use((req, res, next) => {
+    res.setHeader('Vary', 'Origin');
+    next();
   });
 
   app.use(bodyParser.json({ limit: '25mb' }));
@@ -47,27 +107,24 @@ async function bootstrap() {
       .setVersion('2.0.0')
       .setContact('AC Acessórios - TI', 'https://acacessorios.com.br', 'ti@acacessorios.com.br')
       .setLicense('Proprietário', '')
-      // se usar auth por Bearer em algum endpoint:
       .addBearerAuth(
-        { 
-          type: 'http', 
-          scheme: 'bearer', 
+        {
+          type: 'http',
+          scheme: 'bearer',
           bearerFormat: 'JWT',
-          description: 'Token JWT para autenticação'
+          description: 'Token JWT para autenticação',
         },
-        'jwt', // nome do esquema
+        'jwt',
       )
-      // como você usa APP_TOKEN por query/body, exponha um apiKey por query
       .addApiKey(
-        { 
-          type: 'apiKey', 
-          name: 'token', 
-          in: 'query', 
-          description: 'TOKEN de acesso da aplicação enviado via query parameter'
+        {
+          type: 'apiKey',
+          name: 'token',
+          in: 'query',
+          description: 'TOKEN de acesso da aplicação enviado via query parameter',
         },
-        'appToken', // nome do esquema
+        'appToken',
       )
-      // (opcional) mostre servidores
       .addServer(process.env.PUBLIC_URL ?? 'http://localhost:8000', 'Servidor de Desenvolvimento')
       .addServer('https://intranetbackend.acacessorios.local', 'Servidor de Produção')
       .build();
@@ -76,7 +133,7 @@ async function bootstrap() {
       operationIdFactory: (controllerKey: string, methodKey: string) => methodKey,
       deepScanRoutes: true,
     });
-    
+
     SwaggerModule.setup('docs', app, document, {
       swaggerOptions: {
         persistAuthorization: true,
@@ -95,7 +152,7 @@ async function bootstrap() {
         'https://unpkg.com/swagger-ui-themes@3.0.1/themes/3.x/theme-material.css',
       ],
     });
-    // Agora a UI fica em /docs e o JSON em /docs-json
+    // UI: /docs • JSON: /docs-json
   }
 
   const port = parseInt(process.env.PORT || '8000', 10);

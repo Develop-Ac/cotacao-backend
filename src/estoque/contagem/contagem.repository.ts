@@ -498,6 +498,7 @@ export class EstoqueSaidasRepository {
   }
 
   async createContagemItem(data: Prisma.est_contagem_itensCreateInput) {
+    // Aplicar sanitização antes da criação
     const sanitizedData = this.sanitizeData(data);
     return this.prisma.est_contagem_itens.create({ data: sanitizedData });
   }
