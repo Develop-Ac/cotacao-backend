@@ -63,7 +63,7 @@ export class NotaFiscalService {
         contentType: 'application/xml',
       });
 
-      const resp = await axios.post('http://127.0.0.1:8001/danfe/file', form, {
+      const resp = await axios.post('http://xml-to-pdf-service.acacessorios.local/danfe/file', form, {
         headers: form.getHeaders(),
         responseType: 'arraybuffer',
         validateStatus: () => true, // vamos inspecionar manualmente
