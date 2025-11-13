@@ -2,6 +2,9 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsIn, IsNotEmpty, IsString } from 'class-validator';
 
 export class UpdateLiberadoContagemDto {
+  divergencia(contagem_cuid: string, contagem: number, divergencia: any) {
+    throw new Error('Method not implemented.');
+  }
   @ApiProperty({
     description: 'Identificador comum do grupo de contagens',
     example: 'clx1234567890group'

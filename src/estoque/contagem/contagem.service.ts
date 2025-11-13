@@ -42,8 +42,8 @@ export class EstoqueSaidasService {
     return this.repo.getEstoqueProduto(codProduto, empresa);
   }
 
-  async updateLiberadoContagem(contagem_cuid: string, contagem: number) {
-    return this.repo.updateLiberadoContagem(contagem_cuid, contagem);
+  async updateLiberadoContagem(contagem_cuid: string, contagem: number, divergencia: boolean) {
+    return this.repo.updateLiberadoContagem(contagem_cuid, contagem, divergencia);
   }
 
   async getContagensByGrupo(contagem_cuid: string): Promise<ContagemResponseDto[]> {

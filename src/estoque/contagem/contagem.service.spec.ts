@@ -295,6 +295,7 @@ describe('EstoqueSaidasService', () => {
     it('deve liberar próxima contagem', async () => {
       const contagem_cuid = 'grupo-123';
       const contagem = 1;
+      const divergencia = false;
       const mockContagemLiberada = {
         id: 'contagem-456',
         contagem_cuid: 'grupo-123',
@@ -306,21 +307,22 @@ describe('EstoqueSaidasService', () => {
 
       repository.updateLiberadoContagem.mockResolvedValue(mockContagemLiberada);
 
-      const result = await service.updateLiberadoContagem(contagem_cuid, contagem);
+      const result = await service.updateLiberadoContagem(contagem_cuid, contagem, divergencia);
 
-      expect(repository.updateLiberadoContagem).toHaveBeenCalledWith(contagem_cuid, contagem);
+      expect(repository.updateLiberadoContagem).toHaveBeenCalledWith(contagem_cuid, contagem, divergencia);
       expect(result).toEqual(mockContagemLiberada);
     });
 
     it('deve repassar erro se contagem não encontrada', async () => {
       const contagem_cuid = 'grupo-inexistente';
       const contagem = 1;
+      const divergencia = false;
 
       repository.updateLiberadoContagem.mockRejectedValue(
         new BadRequestException('Nenhuma contagem encontrada com contagem_cuid "grupo-inexistente" e tipo 2'),
       );
 
-      await expect(service.updateLiberadoContagem(contagem_cuid, contagem)).rejects.toThrow(
+      await expect(service.updateLiberadoContagem(contagem_cuid, contagem, divergencia)).rejects.toThrow(
         'Nenhuma contagem encontrada com contagem_cuid "grupo-inexistente" e tipo 2',
       );
     });

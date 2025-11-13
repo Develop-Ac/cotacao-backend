@@ -439,6 +439,7 @@ describe('EstoqueSaidasRepository', () => {
     it('deve liberar contagem tipo 2 quando recebe contagem tipo 1', async () => {
       const contagem_cuid = 'grupo-123';
       const contagem = 1;
+      const divergencia = false;
 
       const mockContagemLiberada = {
         id: 'contagem-456',
@@ -455,7 +456,7 @@ describe('EstoqueSaidasRepository', () => {
 
       mockPrismaService.est_contagem.findFirst.mockResolvedValue(mockContagemLiberada);
 
-      const result = await repository.updateLiberadoContagem(contagem_cuid, contagem);
+      const result = await repository.updateLiberadoContagem(contagem_cuid, contagem, divergencia);
 
       // Primeira chamada: desabilita contagem tipo 1
       expect(mockPrismaService.est_contagem.updateMany).toHaveBeenNthCalledWith(1, {
@@ -475,6 +476,7 @@ describe('EstoqueSaidasRepository', () => {
     it('deve liberar contagem tipo 3 quando recebe contagem tipo 2', async () => {
       const contagem_cuid = 'grupo-123';
       const contagem = 2;
+      const divergencia = false;
 
       const mockContagemLiberada = {
         id: 'contagem-456',
@@ -491,7 +493,7 @@ describe('EstoqueSaidasRepository', () => {
 
       mockPrismaService.est_contagem.findFirst.mockResolvedValue(mockContagemLiberada);
 
-      const result = await repository.updateLiberadoContagem(contagem_cuid, contagem);
+      const result = await repository.updateLiberadoContagem(contagem_cuid, contagem, divergencia);
 
       // Primeira chamada: desabilita contagem tipo 2
       expect(mockPrismaService.est_contagem.updateMany).toHaveBeenNthCalledWith(1, {
@@ -511,12 +513,13 @@ describe('EstoqueSaidasRepository', () => {
     it('deve rejeitar se contagem para liberar não encontrada', async () => {
       const contagem_cuid = 'grupo-inexistente';
       const contagem = 1;
+      const divergencia = false;
 
       mockPrismaService.est_contagem.updateMany
         .mockResolvedValueOnce({ count: 1 }) // Para desabilitar contagem atual
         .mockResolvedValueOnce({ count: 0 }); // Para liberar próxima contagem (não encontrada)
 
-      await expect(repository.updateLiberadoContagem(contagem_cuid, contagem)).rejects.toThrow(
+      await expect(repository.updateLiberadoContagem(contagem_cuid, contagem, divergencia)).rejects.toThrow(
         'Nenhuma contagem encontrada com contagem_cuid "grupo-inexistente" e tipo 2',
       );
     });

@@ -364,43 +364,55 @@ export class EstoqueSaidasRepository {
     return rows.length > 0 ? rows[0] : null;
   }
 
-  async updateLiberadoContagem(contagem_cuid: string, contagem: number) {
-    // Define qual contagem deve ser liberada baseada na lógica:
-    // Se contagem = 1, libera contagem tipo 2
-    // Se contagem = 2, libera contagem tipo 3
-    const contagemParaLiberar = contagem === 1 ? 2 : 3;
-
-    // Primeiro: coloca false na contagem atual (que veio do front)
+  async updateLiberadoContagem(
+    contagem_cuid: string,
+    contagem: number,
+    divergencia: boolean
+  ) { 
+    // Sempre trava a contagem atual (liberado_contagem = false)
     await this.prisma.est_contagem.updateMany({
-      where: { 
-        contagem_cuid: contagem_cuid,
-        contagem: contagem
-      },
-      data: { liberado_contagem: false }
-    });
-
-    // Segundo: libera a próxima contagem (coloca true)
-    const updated = await this.prisma.est_contagem.updateMany({
-      where: { 
-        contagem_cuid: contagem_cuid,
-        contagem: contagemParaLiberar
-      },
-      data: { liberado_contagem: true }
-    });
-
-    if (updated.count === 0) {
-      throw new BadRequestException(`Nenhuma contagem encontrada com contagem_cuid "${contagem_cuid}" e tipo ${contagemParaLiberar}`);
-    }
-
-    // Retorna a contagem liberada para confirmação
-    const contagemAtualizada = await this.prisma.est_contagem.findFirst({
       where: {
         contagem_cuid: contagem_cuid,
-        contagem: contagemParaLiberar
-      }
+        contagem: contagem,
+      },
+      data: { liberado_contagem: false },
     });
 
-    return contagemAtualizada;
+    if (divergencia) {
+      // Se divergência, libera a próxima contagem
+      const contagemParaLiberar = contagem === 1 ? 2 : 3;
+      const updated = await this.prisma.est_contagem.updateMany({
+        where: {
+          contagem_cuid: contagem_cuid,
+          contagem: contagemParaLiberar,
+        },
+        data: { liberado_contagem: true },
+      });
+
+      if (updated.count === 0) {
+        throw new BadRequestException(
+          `Nenhuma contagem encontrada com contagem_cuid "${contagem_cuid}" e tipo ${contagemParaLiberar}`
+        );
+      }
+
+      // Retorna a contagem liberada para confirmação
+      const contagemAtualizada = await this.prisma.est_contagem.findFirst({
+        where: {
+          contagem_cuid: contagem_cuid,
+          contagem: contagemParaLiberar,
+        },
+      });
+
+      return contagemAtualizada;
+    }
+
+    // Se não há divergência, só trava o atual e não libera o próximo
+    return await this.prisma.est_contagem.findFirst({
+      where: {
+        contagem_cuid: contagem_cuid,
+        contagem: contagem,
+      },
+    });
   }
 
   async getContagensByGrupo(contagem_cuid: string) {

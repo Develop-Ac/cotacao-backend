@@ -348,7 +348,7 @@ export class EstoqueSaidasController {
     }
   })
   async updateLiberadoContagem(@Body() body: UpdateLiberadoContagemDto) {
-    return this.service.updateLiberadoContagem(body.contagem_cuid, body.contagem);
+    return this.service.updateLiberadoContagem(body.contagem_cuid, body.contagem, !!body.divergencia);
   }
 
   @Put('item/:id')
