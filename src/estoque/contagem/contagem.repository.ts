@@ -5,6 +5,42 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateContagemDto } from './dto/create-contagem.dto';
 import { ConferirEstoqueResponseDto } from './dto/conferir-estoque-response.dto';
 import { Prisma } from '@prisma/client';
+import crypto from 'crypto';
+
+// ==== helpers de saneamento (anti-NUL) ====
+function stripNulls(s: string): string {
+  // remove bytes NUL e normaliza
+  return s.replace(/\u0000/g, '');
+}
+
+// Converte qualquer valor "texto" para string limpa ou null:
+// aceita string, Buffer, e objeto { data: number[] } (ex.: vindo do Firebird)
+function asCleanNullableText(v: any): string | null {
+  if (v === undefined || v === null) return null;
+
+  let s: string;
+  if (Buffer.isBuffer(v)) {
+    s = v.toString('utf8');
+  } else if (typeof v === 'object' && Array.isArray((v as any).data)) {
+    // ex.: { type: 'Buffer', data: [...] }
+    s = Buffer.from((v as any).data).toString('utf8');
+  } else {
+    s = String(v);
+  }
+
+  s = stripNulls(s).trim();
+  return s.length ? s : null;
+}
+
+function asCleanDate(v: any): Date {
+  const d = v instanceof Date ? v : new Date(v);
+  return isNaN(d.getTime()) ? new Date() : d;
+}
+
+function asNumberOrZero(v: any): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
 
 /**
  * Responsável por montar o T-SQL dinâmico com OPENQUERY(CONSULTA, '...').
@@ -127,14 +163,22 @@ export class EstoqueSaidasRepository {
   }
 
   async createContagem(createContagemDto: CreateContagemDto) {
-    const { colaborador: nomeColaborador, contagem: tipoContagem, produtos, contagem_cuid } = createContagemDto;
+    const {
+      colaborador: nomeColaboradorRaw,
+      contagem: tipoContagem,
+      produtos,
+      contagem_cuid,
+    } = createContagemDto;
+
+    // limpa possíveis NULs no nome
+    const nomeColaborador = stripNulls(String(nomeColaboradorRaw ?? '')).trim();
 
     // Buscar o usuário pelo nome para obter o ID
     const usuario = await this.prisma.sis_usuarios.findFirst({
       where: {
         nome: nomeColaborador,
-        trash: 0
-      }
+        trash: 0,
+      },
     });
 
     if (!usuario) {
@@ -144,61 +188,72 @@ export class EstoqueSaidasRepository {
     // Gera um CUID único se não foi fornecido
     const grupoContagem = contagem_cuid || crypto.randomUUID();
 
+    // Pré-sanitiza os produtos uma única vez
+    const produtosSanitizados = Array.isArray(produtos)
+      ? produtos.map((p) => ({
+          DATA: asCleanDate(p.DATA),
+          COD_PRODUTO: asNumberOrZero(p.COD_PRODUTO),
+          DESC_PRODUTO: asCleanNullableText(p.DESC_PRODUTO),
+          MAR_DESCRICAO: asCleanNullableText(p.MAR_DESCRICAO),
+          REF_FABRICANTE: asCleanNullableText(p.REF_FABRICANTE),
+          REF_FORNECEDOR: asCleanNullableText(p.REF_FORNECEDOR),
+          LOCALIZACAO: asCleanNullableText(p.LOCALIZACAO),
+          UNIDADE: asCleanNullableText(p.UNIDADE),
+          // APLICACOES costuma vir com bytes binários; limpamos NUL e convertemos:
+          APLICACOES: asCleanNullableText(p.APLICACOES),
+          QTDE_SAIDA: asNumberOrZero(p.QTDE_SAIDA),
+          ESTOQUE: asNumberOrZero(p.ESTOQUE),
+          RESERVA: asNumberOrZero(p.RESERVA),
+        }))
+      : [];
+
     // Usar transação para criar contagem e itens separadamente
     const contagemResult = await this.prisma.$transaction(async (tx) => {
       // Criar a contagem sem itens primeiro
       const contagem = await tx.est_contagem.create({
         data: {
           colaborador: usuario.id,
-        contagem: tipoContagem,
-        contagem_cuid: grupoContagem,
-        liberado_contagem: tipoContagem === 1, // true se contagem for 1, false para demais valores
+          contagem: tipoContagem,
+          contagem_cuid: grupoContagem,
+          liberado_contagem: tipoContagem === 1, // true se contagem for 1, false para demais valores
         },
         include: {
           usuario: {
-            select: {
-              id: true,
-              nome: true,
-              codigo: true
-            }
-          }
-        }
+            select: { id: true, nome: true, codigo: true },
+          },
+        },
       });
 
       // Verificar se já existem itens para este contagem_cuid
       const itensExistentes = await tx.est_contagem_itens.findMany({
-        where: {
-          contagem_cuid: grupoContagem
-        }
+        where: { contagem_cuid: grupoContagem },
       });
 
       let itens: any[] = [];
 
-      // Só criar itens se não existirem para este grupo
       if (itensExistentes.length === 0) {
         // Criar os itens associados ao contagem_cuid
-        for (const produto of produtos) {
+        for (const produto of produtosSanitizados) {
           const item = await tx.est_contagem_itens.create({
             data: {
-              contagem_cuid: grupoContagem, // Agora referencia diretamente o contagem_cuid
-              data: new Date(produto.DATA),
+              contagem_cuid: grupoContagem,
+              data: produto.DATA, // já saneado p/ Date válido
               cod_produto: produto.COD_PRODUTO,
-              desc_produto: produto.DESC_PRODUTO,
-              mar_descricao: produto.MAR_DESCRICAO || null,
-              ref_fabricante: produto.REF_FABRICANTE || null,
-              ref_fornecedor: produto.REF_FORNECEDOR || null,
-              localizacao: produto.LOCALIZACAO || null,
-              unidade: produto.UNIDADE || null,
-              aplicacoes: produto.APLICACOES || null,
+              desc_produto: produto.DESC_PRODUTO ?? '',       // strings limpas (sem 0x00) ou null
+              mar_descricao: produto.MAR_DESCRICAO,
+              ref_fabricante: produto.REF_FABRICANTE,
+              ref_fornecedor: produto.REF_FORNECEDOR,
+              localizacao: produto.LOCALIZACAO,
+              unidade: produto.UNIDADE,
+              aplicacoes: produto.APLICACOES,
               qtde_saida: produto.QTDE_SAIDA,
               estoque: produto.ESTOQUE,
-              reserva: produto.RESERVA
-            }
+              reserva: produto.RESERVA,
+            },
           });
           itens.push(item);
         }
       } else {
-        // Se já existem itens, buscar os existentes
         itens = itensExistentes;
       }
 
